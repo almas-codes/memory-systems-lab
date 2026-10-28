@@ -1,0 +1,20 @@
+{
+  "ReadPathBenchmark": {
+    "ReadIterations": 5000000,
+    "BaselineZeroMetadata": {
+      "MetadataEntries": 0,
+      "ElapsedMs": 18,
+      "ThroughputOpsPerSec": 274686034,
+      "MeanLatencyNs": 3.64
+    },
+    "PopulatedMetadata": {
+      "MetadataEntries": 100000,
+      "ElapsedMs": 18,
+      "ThroughputOpsPerSec": 268911179,
+      "MeanLatencyNs": 3.72
+    },
+    "LatencyImpactNs": 0.08,
+    "ReadPathTouchesSequenceMetadata": false,
+    "Conclusion": "Read path accesses strictly volatile IsHealthy and unmanaged bit plane. Sequence metadata overhead is 0 ns."
+  }
+}

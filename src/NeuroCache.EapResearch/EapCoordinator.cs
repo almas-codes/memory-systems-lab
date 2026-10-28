@@ -17,10 +17,25 @@ public sealed class EapCoordinator : IAsyncDisposable
     private readonly EapBooleanBitmap _bitmap;
     private readonly EapPackedCategoryPlane _categoryPlane;
     private readonly int _defaultThreshold;
-    private long _lastAppliedMutationSeq;
+    private long _legacyLastAppliedMutationSeq;
+    private readonly ContiguousWatermarkTracker _watermarkTracker = new();
 
     public bool IsHealthy { get; private set; } = false;
-    public long LastAppliedMutationSeq => Volatile.Read(ref _lastAppliedMutationSeq);
+    
+    /// <summary>
+    /// When EnforceContiguousWatermark is true, returns the contiguous applied watermark
+    /// (the highest sequence such that all preceding sequences have completed memory publication).
+    /// When false, returns the legacy unconstrained maximum sequence.
+    /// </summary>
+    public long LastAppliedMutationSeq => EnforceContiguousWatermark 
+        ? _watermarkTracker.Watermark 
+        : Volatile.Read(ref _legacyLastAppliedMutationSeq);
+
+    public long ContiguousWatermark => _watermarkTracker.Watermark;
+    public long HighestPublishedSeq => _watermarkTracker.HighestPublishedSeq;
+    public int InFlightMutationCount => _watermarkTracker.InFlightCount;
+    public int AccountSequenceMetadataCount => _accountSequences.Count;
+
     public EapBooleanBitmap Bitmap => _bitmap;
     public EapPackedCategoryPlane CategoryPlane => _categoryPlane;
 
@@ -39,9 +54,40 @@ public sealed class EapCoordinator : IAsyncDisposable
     /// </summary>
     public bool EnforceMonotonicPublicationOrdering { get; set; } = true;
 
+    /// <summary>
+    /// When true, guarantees that the global last-applied watermark never advances past
+    /// any in-flight mutation that has committed to PostgreSQL but not yet completed memory publication.
+    /// Can be toggled in adversarial tests to prove both the watermark gap anomaly and the fix.
+    /// </summary>
+    public bool EnforceContiguousWatermark { get; set; } = true;
+
     private readonly System.Collections.Concurrent.ConcurrentDictionary<long, long> _accountSequences = new();
 
     public long GetAccountPublishedSequence(long id) => _accountSequences.TryGetValue(id, out long seq) ? seq : 0;
+
+    /// <summary>
+    /// Prunes entries from _accountSequences whose sequence number is less than or equal to
+    /// the contiguous applied watermark. Once the global watermark has reached W, no event with
+    /// sequence &lt;= W can ever arrive, making those entries completely safe to reclaim.
+    /// </summary>
+    public int PruneMetadataBelowWatermark()
+    {
+        long wm = LastAppliedMutationSeq;
+        if (wm <= 0) return 0;
+
+        int pruned = 0;
+        foreach (var kvp in _accountSequences)
+        {
+            if (kvp.Value <= wm)
+            {
+                if (_accountSequences.TryRemove(kvp.Key, out _))
+                {
+                    pruned++;
+                }
+            }
+        }
+        return pruned;
+    }
 
     public void MarkHealthy(bool healthy = true) => IsHealthy = healthy;
 
@@ -129,6 +175,10 @@ public sealed class EapCoordinator : IAsyncDisposable
                 {
                     // Superseded mutation: a newer mutation was already published for this account.
                     // Dropping obsolete write to prevent silent memory corruption.
+                    if (EnforceContiguousWatermark)
+                    {
+                        _watermarkTracker.AcknowledgePublication(seqId);
+                    }
                     return false;
                 }
             }
@@ -153,12 +203,19 @@ public sealed class EapCoordinator : IAsyncDisposable
 
         if (seqId > 0)
         {
-            long currentLast;
-            do
+            if (EnforceContiguousWatermark)
             {
-                currentLast = Volatile.Read(ref _lastAppliedMutationSeq);
-                if (seqId <= currentLast) break;
-            } while (Interlocked.CompareExchange(ref _lastAppliedMutationSeq, seqId, currentLast) != currentLast);
+                _watermarkTracker.AcknowledgePublication(seqId);
+            }
+            else
+            {
+                long currentLast;
+                do
+                {
+                    currentLast = Volatile.Read(ref _legacyLastAppliedMutationSeq);
+                    if (seqId <= currentLast) break;
+                } while (Interlocked.CompareExchange(ref _legacyLastAppliedMutationSeq, seqId, currentLast) != currentLast);
+            }
         }
 
         return true;
@@ -278,6 +335,10 @@ public sealed class EapCoordinator : IAsyncDisposable
                 if (seqVal != null && seqVal != DBNull.Value)
                 {
                     mutationSeq = Convert.ToInt64(seqVal);
+                    if (EnforceContiguousWatermark)
+                    {
+                        _watermarkTracker.RegisterInFlight(mutationSeq);
+                    }
                 }
             }
             catch
@@ -293,6 +354,14 @@ public sealed class EapCoordinator : IAsyncDisposable
 
             if (OnAfterCommit != null)
                 await OnAfterCommit(id, mutationSeq).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (EnforceContiguousWatermark && mutationSeq > 0)
+            {
+                _watermarkTracker.CancelInFlight(mutationSeq);
+            }
+            throw;
         }
         finally
         {
@@ -382,6 +451,10 @@ public sealed class EapCoordinator : IAsyncDisposable
                 if (seqVal != null && seqVal != DBNull.Value)
                 {
                     mutationSeq = Convert.ToInt64(seqVal);
+                    if (EnforceContiguousWatermark)
+                    {
+                        _watermarkTracker.RegisterInFlight(mutationSeq);
+                    }
                 }
             }
             catch { }
@@ -393,6 +466,14 @@ public sealed class EapCoordinator : IAsyncDisposable
 
             if (OnAfterCommit != null)
                 await OnAfterCommit(id, mutationSeq).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (EnforceContiguousWatermark && mutationSeq > 0)
+            {
+                _watermarkTracker.CancelInFlight(mutationSeq);
+            }
+            throw;
         }
         finally
         {
@@ -474,6 +555,10 @@ public sealed class EapCoordinator : IAsyncDisposable
                 if (seqVal != null && seqVal != DBNull.Value)
                 {
                     mutationSeq = Convert.ToInt64(seqVal);
+                    if (EnforceContiguousWatermark)
+                    {
+                        _watermarkTracker.RegisterInFlight(mutationSeq);
+                    }
                 }
             }
             catch { }
@@ -485,6 +570,14 @@ public sealed class EapCoordinator : IAsyncDisposable
 
             if (OnAfterCommit != null)
                 await OnAfterCommit(id, mutationSeq).ConfigureAwait(false);
+        }
+        catch
+        {
+            if (EnforceContiguousWatermark && mutationSeq > 0)
+            {
+                _watermarkTracker.CancelInFlight(mutationSeq);
+            }
+            throw;
         }
         finally
         {
@@ -526,7 +619,7 @@ public sealed class EapCoordinator : IAsyncDisposable
             ORDER BY seq_id ASC;";
 
         await using var cmd = new NpgsqlCommand(query, conn);
-        cmd.Parameters.AddWithValue("lastSeq", Volatile.Read(ref _lastAppliedMutationSeq));
+        cmd.Parameters.AddWithValue("lastSeq", LastAppliedMutationSeq);
 
         int replayed = 0;
         try
@@ -539,6 +632,10 @@ public sealed class EapCoordinator : IAsyncDisposable
                 int balance = reader.GetInt32(2);
                 bool active = reader.GetBoolean(3);
 
+                if (EnforceContiguousWatermark)
+                {
+                    _watermarkTracker.RegisterInFlight(seq);
+                }
                 PublishCrossPlane(accountId, balance, active, seq);
                 replayed++;
             }
@@ -633,7 +730,14 @@ public sealed class EapCoordinator : IAsyncDisposable
             await tx.CommitAsync(ct).ConfigureAwait(false);
 
             // Record initial watermark
-            Interlocked.Exchange(ref _lastAppliedMutationSeq, snapshotWatermark);
+            if (EnforceContiguousWatermark)
+            {
+                _watermarkTracker.Reset(snapshotWatermark);
+            }
+            else
+            {
+                Interlocked.Exchange(ref _legacyLastAppliedMutationSeq, snapshotWatermark);
+            }
             _accountSequences.Clear();
 
             // 3. Catch up any mutations committed after the snapshot transaction began

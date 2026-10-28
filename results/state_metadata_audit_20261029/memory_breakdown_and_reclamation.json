@@ -1,0 +1,66 @@
+{
+  "BitplaneMemoryScaling": [
+    {
+      "RecordCount": 1000000,
+      "BooleanPlaneBytes": 125000,
+      "BooleanPlaneMb": 0.12,
+      "CategoryPlaneBytes": 500000,
+      "CategoryPlaneMb": 0.48,
+      "TotalPlanesMb": 0.6
+    },
+    {
+      "RecordCount": 10000000,
+      "BooleanPlaneBytes": 1250000,
+      "BooleanPlaneMb": 1.19,
+      "CategoryPlaneBytes": 5000000,
+      "CategoryPlaneMb": 4.77,
+      "TotalPlanesMb": 5.96
+    },
+    {
+      "RecordCount": 50000000,
+      "BooleanPlaneBytes": 6250000,
+      "BooleanPlaneMb": 5.96,
+      "CategoryPlaneBytes": 25000000,
+      "CategoryPlaneMb": 23.84,
+      "TotalPlanesMb": 29.8
+    }
+  ],
+  "ConcurrentDictionaryEmpiricalCost": {
+    "TestEntries": 100000,
+    "MeasuredBytesPerEntry": 60.89,
+    "UnreclaimedProjectionsAtScale": [
+      {
+        "RecordCount": 1000000,
+        "EstimatedDictionaryBytes": 60886640,
+        "EstimatedDictionaryMb": 58.07,
+        "TotalMemoryWithUnreclaimedMetadataMb": 58.66
+      },
+      {
+        "RecordCount": 10000000,
+        "EstimatedDictionaryBytes": 608866400,
+        "EstimatedDictionaryMb": 580.66,
+        "TotalMemoryWithUnreclaimedMetadataMb": 586.62
+      },
+      {
+        "RecordCount": 50000000,
+        "EstimatedDictionaryBytes": 3044332000,
+        "EstimatedDictionaryMb": 2903.3,
+        "TotalMemoryWithUnreclaimedMetadataMb": 2933.1
+      }
+    ]
+  },
+  "WatermarkReclamationPerformance": {
+    "TotalMutations": 50000,
+    "DistinctAccounts": 5000,
+    "ElapsedMs": 39,
+    "TotalPrunedEntries": 50000,
+    "SteadyStateMetadataCount": 0,
+    "SteadyStateMetadataBytes": 0,
+    "Gen0Collections": 2,
+    "Gen1Collections": 2,
+    "Gen2Collections": 2,
+    "AllocatedDeltaBytes": 2885664,
+    "ReclamationPreservesBoundedFootprint": true,
+    "FiftyMillionResidentFootprintMb": 6.25
+  }
+}

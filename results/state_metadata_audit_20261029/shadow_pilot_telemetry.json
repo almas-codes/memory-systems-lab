@@ -1,0 +1,30 @@
+{
+  "PilotConfiguration": {
+    "PostgreSqlAuthoritative": true,
+    "EapShadowDarkComparison": true,
+    "CircuitBreakerMismatchThreshold": 5,
+    "MaxAllowedOutboxLag": 500,
+    "SanitizedTelemetryNoPayloads": true
+  },
+  "NormalOperationTelemetry": {
+    "TotalAuthoritativeQueries": 200,
+    "ShadowMatchCount": 200,
+    "ShadowMismatchCount": 0,
+    "MatchFidelityPercentage": 100,
+    "AvgPostgreSqlLatencyUs": 790.14,
+    "AvgEapLatencyNs": 414.5,
+    "SpeedupFactor": 1906.2,
+    "CircuitBreakerState": "Closed"
+  },
+  "KillSwitchVerification": {
+    "KillSwitchTested": true,
+    "AuthoritativeQueriesServedDuringKillSwitch": true,
+    "ShadowBypassed": true
+  },
+  "CircuitBreakerVerification": {
+    "TrippedOnConsecutiveMismatches": true,
+    "CircuitBreakerTripsRecorded": 1,
+    "PostgreSqlContinuesAuthoritativeDuringTrip": true,
+    "ManualResetSupported": true
+  }
+}

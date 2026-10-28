@@ -1,0 +1,33 @@
+{
+  "UnpatchedCrossAccountGapAnomaly": {
+    "EnforceContiguousWatermark": false,
+    "WriterA_AccountId": 1,
+    "WriterA_Seq": 1,
+    "WriterA_Status": "Committed, paused pre-publication",
+    "WriterB_AccountId": 2,
+    "WriterB_Seq": 2,
+    "WriterB_Status": "Committed, published",
+    "PrematureGlobalWatermark": 2,
+    "RecoveryQuery": "SELECT ... WHERE seq_id \u003E 2",
+    "RecoveryMissedCommittedMutationsCount": 1,
+    "AnomalyConfirmed": true,
+    "Explanation": "Watermark prematurely jumped to seq 2 while seq 1 was still in flight, permanently skipping seq 1 upon crash recovery."
+  },
+  "PatchedContiguousWatermarkDefense": {
+    "EnforceContiguousWatermark": true,
+    "WriterA_AccountId": 1,
+    "WriterA_Seq": 3,
+    "WriterA_Status": "Committed, registered in-flight, paused pre-publication",
+    "WriterB_AccountId": 2,
+    "WriterB_Seq": 4,
+    "WriterB_Status": "Committed, published",
+    "ContiguousWatermarkWhileInFlight": 2,
+    "HighestPublishedSeq": 4,
+    "InFlightCount": 1,
+    "RecoveryQuery": "SELECT ... WHERE seq_id \u003E 2",
+    "RecoveryCapturedMutationsCount": 2,
+    "FinalWatermarkAfterWriterAPublished": 4,
+    "DefectEliminated": true,
+    "Explanation": "ContiguousWatermarkTracker held global watermark at the earliest in-flight sequence minus 1, guaranteeing 0 missed mutations across crash recovery."
+  }
+}

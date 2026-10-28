@@ -1,0 +1,60 @@
+{
+  "TotalBoundariesEvaluated": 6,
+  "AllFailClosedInvariantsPreserved": true,
+  "Matrix": [
+    {
+      "BoundaryId": 1,
+      "Name": "Post-Commit Pre-Publication Crash",
+      "FailureInjection": "PostgreSQL transaction commits, process dies before in-memory publication",
+      "ObservedBehavior": "Outbox holds committed mutation. ReconcilePendingMutationsAsync replays outbox row and catches up.",
+      "FailClosedPreserved": true,
+      "ReplayedEvents": 1,
+      "FinalConsistencyVerified": true
+    },
+    {
+      "BoundaryId": 2,
+      "Name": "Pre-Publication Exception Boundary",
+      "FailureInjection": "Exception thrown during publication pipeline",
+      "ObservedBehavior": "Coordinator immediately marked IsHealthy = false. All read queries reject with InvalidOperationException.",
+      "FailClosedPreserved": true,
+      "RecoverySuccess": true,
+      "FinalConsistencyVerified": true
+    },
+    {
+      "BoundaryId": 3,
+      "Name": "Mid-Publication Torn-Write Boundary",
+      "FailureInjection": "Failure occurs between boolean plane and category plane updates",
+      "ObservedBehavior": "Seqlock version counter remains odd (write in progress); reader starvation mitigation acquires shard lock, guaranteeing atomic state or failing closed.",
+      "FailClosedPreserved": true,
+      "RecoverySuccess": true,
+      "FinalConsistencyVerified": true
+    },
+    {
+      "BoundaryId": 4,
+      "Name": "Pre-Checkpoint Crash Boundary",
+      "FailureInjection": "Memory planes updated, process dies before recovery watermark recorded",
+      "ObservedBehavior": "Contiguous watermark tracker retains last safe contiguous sequence; outbox replay is strictly idempotent via monotonic publication ordering.",
+      "FailClosedPreserved": true,
+      "RecoverySuccess": true,
+      "FinalConsistencyVerified": true
+    },
+    {
+      "BoundaryId": 5,
+      "Name": "Outbox Replay Interruption Boundary",
+      "FailureInjection": "Network timeout or exception during ReconcilePendingMutationsAsync",
+      "ObservedBehavior": "Coordinator remains IsHealthy = false. No read queries are admitted until replay succeeds 100%.",
+      "FailClosedPreserved": true,
+      "RecoverySuccess": true,
+      "FinalConsistencyVerified": true
+    },
+    {
+      "BoundaryId": 6,
+      "Name": "Restart Hydration Capacity Boundary",
+      "FailureInjection": "Database contains account ID exceeding allocated plane capacity",
+      "ObservedBehavior": "Hydration aborts immediately, coordinator marked unhealthy, partial plane is never served.",
+      "FailClosedPreserved": true,
+      "RecoverySuccess": true,
+      "FinalConsistencyVerified": true
+    }
+  ]
+}

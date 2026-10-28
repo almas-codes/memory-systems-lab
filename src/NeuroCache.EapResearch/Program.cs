@@ -65,6 +65,12 @@ public class Program
                     await gateRunner.RunAllAsync();
                     return 0;
 
+                case "state-audit":
+                case "final-state-audit":
+                    var stateAuditor = new FinalStateMetadataAuditRunner();
+                    await stateAuditor.RunAllAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();
