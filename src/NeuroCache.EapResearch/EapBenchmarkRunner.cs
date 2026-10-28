@@ -15,11 +15,13 @@ public sealed class EapBenchmarkResult
     public string CandidateName { get; set; } = "";
     public string WorkloadName { get; set; } = "";
     public long DatasetRowCount { get; set; }
+    public int Repetition { get; set; }
     public double ThroughputOpsPerSec { get; set; }
     public double MinLatencyUs { get; set; }
     public double P50LatencyUs { get; set; }
     public double P95LatencyUs { get; set; }
     public double P99LatencyUs { get; set; }
+    public double P999LatencyUs { get; set; }
     public double MaxLatencyUs { get; set; }
     public double AllocBytesPerOp { get; set; }
     public long PeakWorkingSetBytes { get; set; }
@@ -36,10 +38,12 @@ public sealed class EapBenchmarkRunner
         int totalRequests = 10_000,
         double readPercent = 100.0,
         bool zipfian = false,
+        bool boundaryChurn = false,
+        int repetition = 1,
         int seed = 42,
         CancellationToken ct = default)
     {
-        Random rng = new(seed);
+        Random rng = new(seed + repetition * 17);
         long hotSetSize = Math.Max(100, maxId / 100); // 1% hot set
 
         var histogram = new LatencyHistogram(totalRequests);
@@ -76,8 +80,21 @@ public sealed class EapBenchmarkRunner
             }
             else
             {
-                int newBalance = rng.Next(0, 200);
-                bool newActive = rng.Next(0, 10) != 0;
+                int newBalance;
+                bool newActive;
+
+                if (boundaryChurn)
+                {
+                    // Boundary churn oscillates across threshold 100 (e.g., 95 <-> 105)
+                    newBalance = (i % 2 == 0) ? 95 : 105;
+                    newActive = true;
+                }
+                else
+                {
+                    newBalance = rng.Next(0, 200);
+                    newActive = rng.Next(0, 10) != 0;
+                }
+
                 await candidate.UpdateAccountAsync(id, newBalance, newActive, ct);
             }
             long t1 = Stopwatch.GetTimestamp();
@@ -97,11 +114,13 @@ public sealed class EapBenchmarkRunner
             CandidateName = candidate.Name,
             WorkloadName = workloadName,
             DatasetRowCount = maxId,
+            Repetition = repetition,
             ThroughputOpsPerSec = metrics.ThroughputOpsPerSec,
             MinLatencyUs = metrics.MinLatencyUs,
             P50LatencyUs = metrics.P50LatencyUs,
             P95LatencyUs = metrics.P95LatencyUs,
             P99LatencyUs = metrics.P99LatencyUs,
+            P999LatencyUs = metrics.P999LatencyUs,
             MaxLatencyUs = metrics.MaxLatencyUs,
             AllocBytesPerOp = metrics.AllocatedBytesPerOp,
             PeakWorkingSetBytes = peakWs,

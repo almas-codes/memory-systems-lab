@@ -59,6 +59,7 @@ public sealed class EapBooleanBitmap
     public async Task<TimeSpan> BuildFromPostgreSqlAsync(
         string connectionString,
         int threshold = 100,
+        string tableName = "eap_lab.accounts_500m",
         Action<long, long>? progressCallback = null,
         CancellationToken ct = default)
     {
@@ -67,8 +68,8 @@ public sealed class EapBooleanBitmap
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync(ct);
 
-        // Stream accounts using sequential unbuffered reader
-        string query = "SELECT id, balance, active FROM eap_lab.accounts_500m ORDER BY id;";
+        // Stream accounts using sequential unbuffered reader without sorting
+        string query = $"SELECT id, balance, active FROM {tableName};";
         await using var cmd = new NpgsqlCommand(query, conn);
         cmd.CommandTimeout = 1800; // 30 minutes
 

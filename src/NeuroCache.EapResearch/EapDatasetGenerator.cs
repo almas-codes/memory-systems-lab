@@ -52,14 +52,28 @@ public sealed class EapDatasetGenerator
     }
 
     public async Task<EapDatasetManifest> GenerateAsync(
-        long totalRecords = 500_000_000L,
+        long totalRecords = 10_000_000L,
         int seed = 42,
         bool unlogged = true,
+        string schemaName = "eap_audit_20261028",
+        string tableName = "accounts_10m",
         Action<long, long>? progressCallback = null,
         CancellationToken ct = default)
     {
+        if (schemaName.Equals("eap_lab", StringComparison.OrdinalIgnoreCase) && 
+            (tableName.Equals("accounts_500m", StringComparison.OrdinalIgnoreCase) || tableName.Equals("accounts_pilot", StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException($"SAFETY CHECK FAILED: Refusing to drop or overwrite protected baseline table '{schemaName}.{tableName}'.");
+        }
+
+        string fullTableName = $"{schemaName}.{tableName}";
+        string idxIdName = $"idx_{tableName}_id";
+        string idxCoveringName = $"idx_{tableName}_covering";
+
         var manifest = new EapDatasetManifest
         {
+            SchemaName = schemaName,
+            TableName = tableName,
             RowCount = totalRecords,
             MinimumId = 1,
             MaximumId = totalRecords,
@@ -72,12 +86,12 @@ public sealed class EapDatasetGenerator
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(ct);
 
-        // 1. Initialize schema and table
+        // 1. Initialize schema and table safely in target schema
         string tableType = unlogged ? "UNLOGGED TABLE" : "TABLE";
         await using (var cmd = new NpgsqlCommand($@"
-            CREATE SCHEMA IF NOT EXISTS eap_lab;
-            DROP TABLE IF EXISTS eap_lab.accounts_500m CASCADE;
-            CREATE {tableType} eap_lab.accounts_500m (
+            CREATE SCHEMA IF NOT EXISTS {schemaName};
+            DROP TABLE IF EXISTS {fullTableName} CASCADE;
+            CREATE {tableType} {fullTableName} (
                 id BIGINT NOT NULL,
                 balance INTEGER NOT NULL,
                 active BOOLEAN NOT NULL,
@@ -89,7 +103,7 @@ public sealed class EapDatasetGenerator
         }
 
         // 2. High-throughput chunk generation using set-based generate_series
-        long chunkSize = 10_000_000L; // 10M rows per chunk
+        long chunkSize = 2_000_000L; // 2M rows per chunk for stable batch progress
         long generated = 0;
 
         while (generated < totalRecords)
@@ -102,7 +116,7 @@ public sealed class EapDatasetGenerator
 
             // Generate deterministic balance and active fields
             string insertSql = $@"
-                INSERT INTO eap_lab.accounts_500m (id, balance, active, version)
+                INSERT INTO {fullTableName} (id, balance, active, version)
                 SELECT g,
                        abs((g * 31 + {seed}) % 200)::int,
                        ((g % 10) != 0),
@@ -120,14 +134,14 @@ public sealed class EapDatasetGenerator
             progressCallback?.Invoke(generated, totalRecords);
         }
 
-        // 3. Build primary key index on ID
-        await using (var cmd = new NpgsqlCommand(@"
-            CREATE UNIQUE INDEX idx_accounts_500m_id ON eap_lab.accounts_500m (id);
-            CREATE INDEX idx_accounts_500m_covering ON eap_lab.accounts_500m (id) INCLUDE (balance, active);
-            ANALYZE eap_lab.accounts_500m;
+        // 3. Build primary key index on ID and covering index
+        await using (var cmd = new NpgsqlCommand($@"
+            CREATE UNIQUE INDEX {idxIdName} ON {fullTableName} (id);
+            CREATE INDEX {idxCoveringName} ON {fullTableName} (id) INCLUDE (balance, active);
+            ANALYZE {fullTableName};
         ", conn))
         {
-            cmd.CommandTimeout = 1800; // 30 minutes for indexing 500M rows
+            cmd.CommandTimeout = 1800; // 30 minutes for indexing
             await cmd.ExecuteNonQueryAsync(ct);
         }
 
@@ -135,9 +149,9 @@ public sealed class EapDatasetGenerator
         manifest.GenerationDuration = sw.Elapsed;
 
         // 4. Measure physical table and index size
-        await using (var cmd = new NpgsqlCommand(@"
-            SELECT pg_relation_size('eap_lab.accounts_500m') AS table_bytes,
-                   pg_total_relation_size('eap_lab.accounts_500m') - pg_relation_size('eap_lab.accounts_500m') AS index_bytes;", conn))
+        await using (var cmd = new NpgsqlCommand($@"
+            SELECT pg_relation_size('{fullTableName}') AS table_bytes,
+                   pg_total_relation_size('{fullTableName}') - pg_relation_size('{fullTableName}') AS index_bytes;", conn))
         {
             await using var reader = await cmd.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
@@ -151,14 +165,19 @@ public sealed class EapDatasetGenerator
         return manifest;
     }
 
-    public async Task<bool> VerifyAsync(long expectedRecords = 500_000_000L, CancellationToken ct = default)
+    public async Task<bool> VerifyAsync(
+        long expectedRecords = 10_000_000L, 
+        string schemaName = "eap_audit_20261028", 
+        string tableName = "accounts_10m", 
+        CancellationToken ct = default)
     {
+        string fullTableName = $"{schemaName}.{tableName}";
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync(ct);
 
         // 1. Verify exact count, min, max
-        await using (var cmd = new NpgsqlCommand(@"
-            SELECT COUNT(*), MIN(id), MAX(id) FROM eap_lab.accounts_500m;
+        await using (var cmd = new NpgsqlCommand($@"
+            SELECT COUNT(*), MIN(id), MAX(id) FROM {fullTableName};
         ", conn))
         {
             cmd.CommandTimeout = 600;
@@ -177,8 +196,8 @@ public sealed class EapDatasetGenerator
         long[] sampleIds = { 1, 100, 1000, expectedRecords / 4, expectedRecords / 2, 3 * expectedRecords / 4, expectedRecords };
         foreach (long id in sampleIds)
         {
-            await using var cmd = new NpgsqlCommand(@"
-                SELECT balance, active, version FROM eap_lab.accounts_500m WHERE id = @id;
+            await using var cmd = new NpgsqlCommand($@"
+                SELECT balance, active, version FROM {fullTableName} WHERE id = @id;
             ", conn);
             cmd.Parameters.AddWithValue("id", id);
 

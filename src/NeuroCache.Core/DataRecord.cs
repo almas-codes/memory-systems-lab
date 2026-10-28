@@ -51,6 +51,7 @@ public readonly record struct StrategyResult(
     public static StrategyResult FromCapsule(ReadOnlyMemory<byte> payload, int bytesRead) => new(true, true, ResultSource.CapsuleRead, bytesRead, 0, payload);
     public static StrategyResult FromCapsule(ulong scalar, int bytesRead) => new(true, true, ResultSource.CapsuleRead, bytesRead, scalar, ReadOnlyMemory<byte>.Empty);
     public static StrategyResult FromExtent(ReadOnlyMemory<byte> payload, int bytesRead) => new(true, true, ResultSource.ExtentRead, bytesRead, 0, payload);
+    public static StrategyResult FromExtent(ulong scalar, int bytesRead) => new(true, true, ResultSource.ExtentRead, bytesRead, scalar, ReadOnlyMemory<byte>.Empty);
     public static StrategyResult FromMMap(ReadOnlyMemory<byte> payload) => new(true, true, ResultSource.MemoryMappedRead, payload.Length, 0, payload);
     public static StrategyResult FromFallback(ReadOnlyMemory<byte> payload, int bytesRead) => new(true, false, ResultSource.AuthoritativeFallback, bytesRead, 0, payload);
 }

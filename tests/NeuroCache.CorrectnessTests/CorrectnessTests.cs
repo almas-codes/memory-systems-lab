@@ -73,4 +73,52 @@ public class DifferentialCorrectnessTests
             }
         }
     }
+
+    [Fact]
+    public async Task SemanticInvalidation_IrrelevantVsDependentFieldChanges_BehaviorVerified()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "neurocache_semantic_" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var generator = new DatasetGenerator();
+            var manifest = await generator.GenerateAsync(tempDir, 100, RecordShape.Small, seed: 99);
+
+            var fabric = new SufficiencyFabricStrategy();
+            await fabric.InitializeAsync(tempDir, manifest, new StrategyOptions());
+
+            ulong testKey = 10;
+            ulong testParam = 12345;
+
+            // 1. Initial compute - populates certificate
+            var res1 = await fabric.ComputeDerivedAsync(testKey, testParam);
+            Assert.True(res1.Success);
+            ulong expectedDerived = res1.ScalarValue;
+
+            // 2. Query again - inline reuse from resident certificate
+            var res2 = await fabric.ComputeDerivedAsync(testKey, testParam);
+            Assert.True(res2.Success);
+            Assert.Equal(expectedDerived, res2.ScalarValue);
+
+            // 3. Mutate an irrelevant field (e.g. Invalidate unrelated key 99)
+            await fabric.InvalidateAsync(99);
+            var res3 = await fabric.ComputeDerivedAsync(testKey, testParam);
+            Assert.True(res3.Success);
+            Assert.Equal(expectedDerived, res3.ScalarValue);
+
+            // 4. Invalidate the dependent key (forcing re-read & re-verification)
+            await fabric.InvalidateAsync(testKey);
+            var res4 = await fabric.ComputeDerivedAsync(testKey, testParam);
+            Assert.True(res4.Success);
+            Assert.Equal(expectedDerived, res4.ScalarValue);
+
+            await fabric.DisposeAsync();
+        }
+        finally
+        {
+            if (Directory.Exists(tempDir))
+            {
+                try { Directory.Delete(tempDir, true); } catch { }
+            }
+        }
+    }
 }

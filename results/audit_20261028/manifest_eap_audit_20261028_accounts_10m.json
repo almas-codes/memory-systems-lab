@@ -1,0 +1,20 @@
+{
+  "DatasetId": "f6c857d9bc334ed7ab148bac3b791fbb",
+  "DatabaseName": "neurocache_eap_lab",
+  "SchemaName": "eap_audit_20261028",
+  "TableName": "accounts_10m",
+  "RowCount": 10000000,
+  "MinimumId": 1,
+  "MaximumId": 10000000,
+  "GeneratorVersion": "1.0.0-net10",
+  "GeneratorSeed": 42,
+  "BalanceDistribution": "Uniform [0..199]",
+  "ActiveDistribution": "Bernoulli (p=0.90)",
+  "SchemaVersion": 1,
+  "DurabilityMode": "UNLOGGED",
+  "TableBytes": 521789440,
+  "IndexBytes": 539811840,
+  "GenerationDuration": "00:00:29.5570092",
+  "VerificationStatus": "GENERATED",
+  "CreatedAtUtc": "2026-10-28T09:50:36.6227278+00:00"
+}

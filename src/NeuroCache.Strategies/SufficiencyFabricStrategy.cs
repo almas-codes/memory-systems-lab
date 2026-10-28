@@ -154,7 +154,7 @@ public sealed class SufficiencyFabricStrategy : IStorageStrategy
 
             Interlocked.Increment(ref _stats.Hits);
             ulong val = fieldIndex == 0 ? header.Field1 : header.Field2;
-            return StrategyResult.FromExtent(ReadOnlyMemory<byte>.Empty, read);
+            return StrategyResult.FromExtent(val, read);
         }
         finally
         {
@@ -182,7 +182,7 @@ public sealed class SufficiencyFabricStrategy : IStorageStrategy
         var res = await DemandFetchProjectionAsync(key, 0, ct).ConfigureAwait(false);
         if (!res.Success) return res;
         ulong derived = (res.ScalarValue * 31UL + param) ^ 0x5555555555555555UL;
-        return StrategyResult.FromExtent(ReadOnlyMemory<byte>.Empty, res.BytesRead);
+        return StrategyResult.FromExtent(derived, res.BytesRead);
     }
 
     public ValueTask<StrategyResult> EvaluatePredicateAsync(ulong key, ulong threshold, CancellationToken ct = default)
@@ -201,7 +201,8 @@ public sealed class SufficiencyFabricStrategy : IStorageStrategy
     {
         var res = await DemandFetchProjectionAsync(key, 0, ct).ConfigureAwait(false);
         if (!res.Success) return res;
-        return StrategyResult.FromExtent(ReadOnlyMemory<byte>.Empty, res.BytesRead);
+        ulong pred = res.ScalarValue > threshold ? 1UL : 0UL;
+        return StrategyResult.FromExtent(pred, res.BytesRead);
     }
 
     public async ValueTask<bool> UpsertAsync(DataRecord record, CancellationToken ct = default)

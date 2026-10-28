@@ -12,7 +12,7 @@ public interface IEapBenchmarkCandidate : IAsyncDisposable
 {
     string Name { get; }
     long EstimatedResidentBytes { get; }
-    Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default);
+    Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default);
     ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default);
     Task<bool> UpdateAccountAsync(long id, int newBalance, bool newActive, CancellationToken ct = default);
 }
@@ -20,12 +20,14 @@ public interface IEapBenchmarkCandidate : IAsyncDisposable
 public sealed class Candidate1_PostgreSqlDirect : IEapBenchmarkCandidate
 {
     private string _connStr = "";
+    private string _tableName = "eap_lab.accounts_500m";
     public string Name => "PostgreSQL-Direct";
     public long EstimatedResidentBytes => 8 * 1024 * 1024; // ~8MB pooled client memory
 
-    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default)
+    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default)
     {
         _connStr = connectionString;
+        _tableName = tableName;
         return Task.CompletedTask;
     }
 
@@ -34,7 +36,8 @@ public sealed class Candidate1_PostgreSqlDirect : IEapBenchmarkCandidate
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
 
-        await using var cmd = new NpgsqlCommand("SELECT (balance >= @t AND active) FROM eap_lab.accounts_500m WHERE id = @id;", conn);
+        // Direct query requiring heap fetch (version is not in covering index)
+        await using var cmd = new NpgsqlCommand($"SELECT (balance >= @t AND active AND version >= 0) FROM {_tableName} WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("t", threshold);
         cmd.Parameters.AddWithValue("id", id);
 
@@ -46,7 +49,7 @@ public sealed class Candidate1_PostgreSqlDirect : IEapBenchmarkCandidate
     {
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand("UPDATE eap_lab.accounts_500m SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
+        await using var cmd = new NpgsqlCommand($"UPDATE {_tableName} SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("b", newBalance);
         cmd.Parameters.AddWithValue("a", newActive);
         cmd.Parameters.AddWithValue("id", id);
@@ -59,12 +62,14 @@ public sealed class Candidate1_PostgreSqlDirect : IEapBenchmarkCandidate
 public sealed class Candidate2_PostgreSqlCovering : IEapBenchmarkCandidate
 {
     private string _connStr = "";
+    private string _tableName = "eap_lab.accounts_500m";
     public string Name => "PostgreSQL-CoveringIndex";
     public long EstimatedResidentBytes => 8 * 1024 * 1024;
 
-    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default)
+    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default)
     {
         _connStr = connectionString;
+        _tableName = tableName;
         return Task.CompletedTask;
     }
 
@@ -73,8 +78,8 @@ public sealed class Candidate2_PostgreSqlCovering : IEapBenchmarkCandidate
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
 
-        // Uses covering index idx_accounts_500m_covering
-        await using var cmd = new NpgsqlCommand("SELECT (balance >= @t AND active) FROM eap_lab.accounts_500m WHERE id = @id;", conn);
+        // Uses covering index if available, or index scan on id
+        await using var cmd = new NpgsqlCommand($"SELECT (balance >= @t AND active) FROM {_tableName} WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("t", threshold);
         cmd.Parameters.AddWithValue("id", id);
 
@@ -86,7 +91,7 @@ public sealed class Candidate2_PostgreSqlCovering : IEapBenchmarkCandidate
     {
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand("UPDATE eap_lab.accounts_500m SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
+        await using var cmd = new NpgsqlCommand($"UPDATE {_tableName} SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("b", newBalance);
         cmd.Parameters.AddWithValue("a", newActive);
         cmd.Parameters.AddWithValue("id", id);
@@ -100,6 +105,7 @@ public sealed class Candidate3_BoundedResultCache : IEapBenchmarkCandidate
 {
     private MemoryCache? _cache;
     private string _connStr = "";
+    private string _tableName = "eap_lab.accounts_500m";
     private readonly long _budgetBytes;
 
     public string Name => "BoundedResultCache";
@@ -110,9 +116,10 @@ public sealed class Candidate3_BoundedResultCache : IEapBenchmarkCandidate
         _budgetBytes = budgetBytes;
     }
 
-    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default)
+    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default)
     {
         _connStr = connectionString;
+        _tableName = tableName;
         _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = _budgetBytes });
         return Task.CompletedTask;
     }
@@ -127,7 +134,7 @@ public sealed class Candidate3_BoundedResultCache : IEapBenchmarkCandidate
         // Miss -> query Postgres and populate cache
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand("SELECT (balance >= @t AND active) FROM eap_lab.accounts_500m WHERE id = @id;", conn);
+        await using var cmd = new NpgsqlCommand($"SELECT (balance >= @t AND active) FROM {_tableName} WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("t", threshold);
         cmd.Parameters.AddWithValue("id", id);
         bool result = (await cmd.ExecuteScalarAsync(ct)) is true;
@@ -144,7 +151,7 @@ public sealed class Candidate3_BoundedResultCache : IEapBenchmarkCandidate
     {
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand("UPDATE eap_lab.accounts_500m SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
+        await using var cmd = new NpgsqlCommand($"UPDATE {_tableName} SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("b", newBalance);
         cmd.Parameters.AddWithValue("a", newActive);
         cmd.Parameters.AddWithValue("id", id);
@@ -175,6 +182,7 @@ public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
     private readonly WarrantEntry[] _table;
     private readonly uint _capacityMask;
     private string _connStr = "";
+    private string _tableName = "eap_lab.accounts_500m";
     private uint _globalClock = 1;
 
     public string Name => "Warrant-v4";
@@ -188,9 +196,10 @@ public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
         _capacityMask = (uint)(cap - 1);
     }
 
-    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default)
+    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default)
     {
         _connStr = connectionString;
+        _tableName = tableName;
         return Task.CompletedTask;
     }
 
@@ -207,7 +216,7 @@ public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
         // Miss -> query Postgres and populate warrant
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand("SELECT (balance >= @t AND active) FROM eap_lab.accounts_500m WHERE id = @id;", conn);
+        await using var cmd = new NpgsqlCommand($"SELECT (balance >= @t AND active) FROM {_tableName} WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("t", threshold);
         cmd.Parameters.AddWithValue("id", id);
         bool result = (await cmd.ExecuteScalarAsync(ct)) is true;
@@ -226,7 +235,7 @@ public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
     {
         await using var conn = new NpgsqlConnection(_connStr);
         await conn.OpenAsync(ct);
-        await using var cmd = new NpgsqlCommand("UPDATE eap_lab.accounts_500m SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
+        await using var cmd = new NpgsqlCommand($"UPDATE {_tableName} SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn);
         cmd.Parameters.AddWithValue("b", newBalance);
         cmd.Parameters.AddWithValue("a", newActive);
         cmd.Parameters.AddWithValue("id", id);
@@ -247,11 +256,11 @@ public sealed class Candidate5_EapBooleanBitmap : IEapBenchmarkCandidate
     public string Name => "EAP-BooleanBitmap";
     public long EstimatedResidentBytes => _coord?.Bitmap.RawMemoryBytes ?? 0;
 
-    public async Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default)
+    public async Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default)
     {
-        _coord = new EapCoordinator(maxId, connectionString, threshold);
+        _coord = new EapCoordinator(maxId, connectionString, threshold, tableName);
         // Build bitmap from PostgreSQL
-        await _coord.Bitmap.BuildFromPostgreSqlAsync(connectionString, threshold, ct: ct);
+        await _coord.Bitmap.BuildFromPostgreSqlAsync(connectionString, threshold, tableName: tableName, ct: ct);
     }
 
     public ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default)
@@ -282,10 +291,11 @@ public sealed class Candidate6_EapPackedCategory : IEapBenchmarkCandidate
     public string Name => "EAP-PackedCategory";
     public long EstimatedResidentBytes => _coord?.CategoryPlane.RawMemoryBytes ?? 0;
 
-    public Task InitializeAsync(long maxId, string connectionString, int threshold = 100, CancellationToken ct = default)
+    public async Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default)
     {
-        _coord = new EapCoordinator(maxId, connectionString, threshold);
-        return Task.CompletedTask;
+        _coord = new EapCoordinator(maxId, connectionString, threshold, tableName);
+        // Hydrate category plane from PostgreSQL authoritative database
+        await _coord.CategoryPlane.BuildFromPostgreSqlAsync(connectionString, tableName: tableName, ct: ct);
     }
 
     public ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default)
