@@ -1,0 +1,18 @@
+=== CANDIDATE 1: DIRECT QUERY (Heap Fetch) ===
+Index Scan using idx_accounts_500m_covering on eap_lab.accounts_500m  (cost=0.42..8.45 rows=1 width=1) (actual time=0.138..0.143 rows=1 loops=1)
+  Output: ((balance >= 100) AND active AND (version >= 0))
+  Index Cond: (accounts_500m.id = 42)
+  Buffers: shared hit=7 dirtied=1
+Planning:
+  Buffers: shared hit=59
+Planning Time: 3.978 ms
+Execution Time: 0.172 ms
+
+=== CANDIDATE 2: COVERING INDEX CANDIDATE ===
+Index Only Scan using idx_accounts_500m_covering on eap_lab.accounts_500m  (cost=0.42..8.45 rows=1 width=1) (actual time=0.324..0.327 rows=1 loops=1)
+  Output: ((balance >= 100) AND active)
+  Index Cond: (accounts_500m.id = 42)
+  Heap Fetches: 1
+  Buffers: shared hit=5
+Planning Time: 0.145 ms
+Execution Time: 0.355 ms

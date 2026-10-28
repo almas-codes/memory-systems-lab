@@ -105,12 +105,12 @@ memory-systems-lab/
 │   ├── NeuroCache.ScaleTests/        # Bounded streaming memory allocation verification
 │   └── NeuroCache.EapResearch.Tests/ # EAP bitmap indexing, category packing, and consistency tests
 ├── docs/
-│   ├── COMPREHENSIVE-RESEARCH-REPORT.md  # Unified master publication report (Phase 1 + Phase 2)
-│   ├── FINAL-REPORT.md                   # Phase 1 deep-dive (100M NVMe records & 17 research questions)
-│   ├── EAP-500M-REPORT.md                # Phase 2 deep-dive (500M PostgreSQL records & EAP analysis)
-│   ├── ARCHITECTURE.md                   # Core storage layout and zero-allocation memory mechanics
-│   ├── BENCHMARK-METHODOLOGY.md          # Measurement methodology, warm-up rules, and timer rigor
-│   └── EXPERIMENT-MATRIX.md              # Complete matrix of tested configurations
+│   ├── MASTER-RESEARCH-REPORT.md         # Full unified research and architecture report
+│   ├── BENCHMARK-REPORT.md               # Empirical benchmark report and comparison matrix
+│   ├── ADVERSARIAL-CORRECTNESS-REPORT.md # Concurrency, Seqlock, outbox gap, and boundary proofs
+│   ├── ADVERSARIAL-BENCHMARK-REPORT.md   # Write microprofiling, latency model, and raw telemetry
+│   ├── NEUROCACHE-VERIFIED-RESULTS.md    # Verified metrics, memory accounting, and economics
+│   └── NEUROCACHE-REMAINING-RISKS.md     # Risk analysis, contention limits, and failure modes
 └── results/                              # Raw machine-readable JSON and JSONL benchmark telemetry
 ```
 
@@ -171,14 +171,15 @@ dotnet run -c Release --project src/NeuroCache.Cli -- eap-benchmark --count 1000
 
 ---
 
-## 6. Detailed Research Reports
+## 6. Detailed Research & Audit Reports
 
 For in-depth mathematical proofs, latency quantile distributions, memory charts, and systems analysis:
-- 📖 [Comprehensive Research Report (Unified Master Document)](docs/COMPREHENSIVE-RESEARCH-REPORT.md)
-- 📖 [Phase 1 Final Engineering Report (100M Records on NVMe)](docs/FINAL-REPORT.md)
-- 📖 [Phase 2 EAP Research Report (500M Records & PostgreSQL)](docs/EAP-500M-REPORT.md)
-- 📐 [Storage & In-Memory Architecture Specification](docs/ARCHITECTURE.md)
-- 🧪 [Benchmarking Rigor & Statistical Methodology](docs/BENCHMARK-METHODOLOGY.md)
+- 📖 [Master Research Report (Full Unified Publication)](docs/MASTER-RESEARCH-REPORT.md)
+- 📊 [Benchmark Results Report & Comparative Matrix](docs/BENCHMARK-REPORT.md)
+- 🛡️ [Adversarial Correctness Audit Report](docs/ADVERSARIAL-CORRECTNESS-REPORT.md)
+- ⏱️ [Adversarial Benchmark & Write Latency Profiling](docs/ADVERSARIAL-BENCHMARK-REPORT.md)
+- ✅ [Master Verified Results & Production Guidance](docs/NEUROCACHE-VERIFIED-RESULTS.md)
+- ⚠️ [Remaining Risks, Failure Modes & Technical Debt](docs/NEUROCACHE-REMAINING-RISKS.md)
 
 ---
 

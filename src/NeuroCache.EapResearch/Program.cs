@@ -43,6 +43,9 @@ public class Program
                 case "report":
                     return HandleReport(args);
 
+                case "adversarial":
+                    return await HandleAdversarialAsync(args);
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();
@@ -288,6 +291,9 @@ Usage:
 
             foreach (var w in workloads)
             {
+                // Isolate candidate cache between workloads to eliminate cross-workload contamination
+                candidate.ResetCache();
+
                 // Warmup run (discarded)
                 await EapBenchmarkRunner.RunBenchmarkAsync(candidate, w.Name, records, totalRequests: Math.Min(reqs, 500), readPercent: w.ReadPct, zipfian: w.Zipf, boundaryChurn: w.Churn, repetition: 0);
 
@@ -352,6 +358,246 @@ Usage:
         EapReportGenerator.GenerateReport(outDir, reportPath);
         Console.WriteLine($"EAP Research Report generated at: {reportPath}");
         return 0;
+    }
+
+    private static async Task<int> HandleAdversarialAsync(string[] args)
+    {
+        if (args.Length < 2)
+        {
+            Console.WriteLine("Usage: adversarial <explain|write-breakdown|run-benchmarks>");
+            return 1;
+        }
+
+        string sub = args[1].ToLowerInvariant();
+        string outDir = Path.Combine(Directory.GetCurrentDirectory(), "results", "adversarial_20261028");
+        Directory.CreateDirectory(outDir);
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+
+        if (sub == "explain")
+        {
+            Console.WriteLine("Executing EXPLAIN (ANALYZE, BUFFERS) for Candidates 1 and 2...");
+            await using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+
+            string q1 = "EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT (balance >= 100 AND active AND version >= 0) FROM eap_lab.accounts_500m WHERE id = 42;";
+            string q2 = "EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT (balance >= 100 AND active) FROM eap_lab.accounts_500m WHERE id = 42;";
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("=== CANDIDATE 1: DIRECT QUERY (Heap Fetch) ===");
+            await using (var cmd = new Npgsql.NpgsqlCommand(q1, conn))
+            await using (var r = await cmd.ExecuteReaderAsync())
+            {
+                while (await r.ReadAsync())
+                {
+                    string line = r.GetString(0);
+                    Console.WriteLine(line);
+                    sb.AppendLine(line);
+                }
+            }
+
+            sb.AppendLine();
+            sb.AppendLine("=== CANDIDATE 2: COVERING INDEX CANDIDATE ===");
+            await using (var cmd = new Npgsql.NpgsqlCommand(q2, conn))
+            await using (var r = await cmd.ExecuteReaderAsync())
+            {
+                while (await r.ReadAsync())
+                {
+                    string line = r.GetString(0);
+                    Console.WriteLine(line);
+                    sb.AppendLine(line);
+                }
+            }
+
+            File.WriteAllText(Path.Combine(outDir, "explain_plans.txt"), sb.ToString());
+            Console.WriteLine($"\nSaved execution plans to {Path.Combine(outDir, "explain_plans.txt")}");
+            return 0;
+        }
+
+        if (sub == "write-breakdown")
+        {
+            Console.WriteLine("Profiling write-latency component breakdown (500 writes)...");
+            await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+            {
+                await setupConn.OpenAsync();
+                await using var createCmd = new Npgsql.NpgsqlCommand(@"
+                    CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                    CREATE TABLE IF NOT EXISTS eap_audit_20261028.mutation_log (
+                        seq_id BIGSERIAL PRIMARY KEY,
+                        account_id BIGINT NOT NULL,
+                        balance INT NOT NULL,
+                        active BOOLEAN NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                    );", setupConn);
+                await createCmd.ExecuteNonQueryAsync();
+            }
+
+            var coord = new EapCoordinator(1_000_000, connStr);
+
+            var checkoutUs = new List<double>();
+            var advLockUs = new List<double>();
+            var updateUs = new List<double>();
+            var outboxUs = new List<double>();
+            var commitUs = new List<double>();
+            var seqlockUs = new List<double>();
+            var totalUs = new List<double>();
+
+            int iterations = 500;
+            var rng = new Random(42);
+
+            for (int i = 0; i < iterations; i++)
+            {
+                long id = rng.NextInt64(1, 100_000);
+                int bal = rng.Next(50, 150);
+                bool act = true;
+
+                long tTotal0 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await using var conn = new Npgsql.NpgsqlConnection(connStr);
+                await conn.OpenAsync();
+                long tCheckout = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                await using var tx = await conn.BeginTransactionAsync();
+
+                long tLock0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await using (var advCmd = new Npgsql.NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext('eap_outbox_lock'));", conn, tx))
+                {
+                    await advCmd.ExecuteNonQueryAsync();
+                }
+                long tLock1 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                long tUp0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await using (var upCmd = new Npgsql.NpgsqlCommand("UPDATE eap_lab.accounts_500m SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn, tx))
+                {
+                    upCmd.Parameters.AddWithValue("b", bal);
+                    upCmd.Parameters.AddWithValue("a", act);
+                    upCmd.Parameters.AddWithValue("id", id);
+                    await upCmd.ExecuteNonQueryAsync();
+                }
+                long tUp1 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                long tOut0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await using (var outCmd = new Npgsql.NpgsqlCommand("INSERT INTO eap_audit_20261028.mutation_log (account_id, balance, active) VALUES (@id, @b, @a) RETURNING seq_id;", conn, tx))
+                {
+                    outCmd.Parameters.AddWithValue("id", id);
+                    outCmd.Parameters.AddWithValue("b", bal);
+                    outCmd.Parameters.AddWithValue("a", act);
+                    await outCmd.ExecuteScalarAsync();
+                }
+                long tOut1 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                long tCom0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await tx.CommitAsync();
+                long tCom1 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                long tSeq0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                coord.PublishCrossPlane(id, bal, act);
+                long tSeq1 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                long tTotal1 = System.Diagnostics.Stopwatch.GetTimestamp();
+
+                double freq = System.Diagnostics.Stopwatch.Frequency / 1_000_000.0;
+                checkoutUs.Add((tCheckout - t0) / freq);
+                advLockUs.Add((tLock1 - tLock0) / freq);
+                updateUs.Add((tUp1 - tUp0) / freq);
+                outboxUs.Add((tOut1 - tOut0) / freq);
+                commitUs.Add((tCom1 - tCom0) / freq);
+                seqlockUs.Add((tSeq1 - tSeq0) / freq);
+                totalUs.Add((tTotal1 - tTotal0) / freq);
+            }
+
+            await coord.DisposeAsync();
+
+            var summary = new
+            {
+                ConnCheckout = ComputeStats(checkoutUs),
+                AdvisoryLock = ComputeStats(advLockUs),
+                PostgresUpdate = ComputeStats(updateUs),
+                OutboxInsert = ComputeStats(outboxUs),
+                TxCommit = ComputeStats(commitUs),
+                SeqlockPublish = ComputeStats(seqlockUs),
+                TotalWrite = ComputeStats(totalUs)
+            };
+
+            string json = JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(outDir, "write_breakdown.json"), json);
+
+            Console.WriteLine("==================================================================================");
+            Console.WriteLine("                     WRITE LATENCY COMPONENT BREAKDOWN (us)                      ");
+            Console.WriteLine("==================================================================================");
+            Console.WriteLine($"{"Component",-20} | {"Mean",8} | {"P50",8} | {"P95",8} | {"P99",8} | {"Max",8} | {"Fraction",8}");
+            Console.WriteLine("---------------------|----------|----------|----------|----------|----------|---------");
+            PrintComponent("Conn Checkout", summary.ConnCheckout, summary.TotalWrite.Mean);
+            PrintComponent("Advisory Lock", summary.AdvisoryLock, summary.TotalWrite.Mean);
+            PrintComponent("PG UPDATE", summary.PostgresUpdate, summary.TotalWrite.Mean);
+            PrintComponent("Outbox INSERT", summary.OutboxInsert, summary.TotalWrite.Mean);
+            PrintComponent("TX Commit", summary.TxCommit, summary.TotalWrite.Mean);
+            PrintComponent("Seqlock Publish", summary.SeqlockPublish, summary.TotalWrite.Mean);
+            PrintComponent("TOTAL WRITE", summary.TotalWrite, summary.TotalWrite.Mean);
+            Console.WriteLine("==================================================================================");
+            Console.WriteLine($"Saved write breakdown telemetry to {Path.Combine(outDir, "write_breakdown.json")}");
+            return 0;
+        }
+
+        if (sub == "run-benchmarks")
+        {
+            string tableName = GetArgValue(args, "--table") ?? "eap_lab.accounts_500m";
+            long records = 1_000_000L;
+            int reps = int.Parse(GetArgValue(args, "--repetitions") ?? "3");
+            int reqs = int.Parse(GetArgValue(args, "--requests") ?? "2000");
+
+            Console.WriteLine($"Running adversarial benchmark on '{tableName}' ({records:N0} records, {reps} reps, {reqs} reqs/rep)...");
+            var benchmarkArgs = new string[]
+            {
+                "benchmark", "run",
+                "--records", records.ToString(),
+                "--table", tableName,
+                "--repetitions", reps.ToString(),
+                "--requests", reqs.ToString(),
+                "--outdir", outDir
+            };
+            return await HandleBenchmarkAsync(benchmarkArgs);
+        }
+
+        Console.WriteLine($"Unknown adversarial subcommand: {sub}");
+        return 1;
+    }
+
+    public class ComponentStat
+    {
+        public double Mean { get; set; }
+        public double StdDev { get; set; }
+        public double P50 { get; set; }
+        public double P95 { get; set; }
+        public double P99 { get; set; }
+        public double Min { get; set; }
+        public double Max { get; set; }
+    }
+
+    private static void PrintComponent(string name, ComponentStat stat, double totalMean)
+    {
+        double frac = stat.Mean / totalMean * 100.0;
+        Console.WriteLine($"{name,-20} | {stat.Mean,8:F1} | {stat.P50,8:F1} | {stat.P95,8:F1} | {stat.P99,8:F1} | {stat.Max,8:F1} | {frac,7:F1}%");
+    }
+
+    private static ComponentStat ComputeStats(List<double> values)
+    {
+        values.Sort();
+        double sum = 0;
+        foreach (var v in values) sum += v;
+        double mean = sum / values.Count;
+
+        double sumSq = 0;
+        foreach (var v in values) sumSq += (v - mean) * (v - mean);
+        double stdDev = Math.Sqrt(sumSq / values.Count);
+
+        double p50 = values[(int)(values.Count * 0.50)];
+        double p95 = values[(int)(values.Count * 0.95)];
+        double p99 = values[(int)(values.Count * 0.99)];
+        double min = values[0];
+        double max = values[^1];
+
+        return new ComponentStat { Mean = mean, StdDev = stdDev, P50 = p50, P95 = p95, P99 = p99, Min = min, Max = max };
     }
 
     private static string? GetArgValue(string[] args, string flag)

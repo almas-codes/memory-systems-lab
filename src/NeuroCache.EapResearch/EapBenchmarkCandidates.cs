@@ -15,6 +15,7 @@ public interface IEapBenchmarkCandidate : IAsyncDisposable
     Task InitializeAsync(long maxId, string connectionString, int threshold = 100, string tableName = "eap_lab.accounts_500m", CancellationToken ct = default);
     ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default);
     Task<bool> UpdateAccountAsync(long id, int newBalance, bool newActive, CancellationToken ct = default);
+    void ResetCache() { }
 }
 
 public sealed class Candidate1_PostgreSqlDirect : IEapBenchmarkCandidate
@@ -162,6 +163,12 @@ public sealed class Candidate3_BoundedResultCache : IEapBenchmarkCandidate
         return ok;
     }
 
+    public void ResetCache()
+    {
+        _cache?.Dispose();
+        _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = _budgetBytes });
+    }
+
     public ValueTask DisposeAsync()
     {
         _cache?.Dispose();
@@ -172,7 +179,7 @@ public sealed class Candidate3_BoundedResultCache : IEapBenchmarkCandidate
 
 public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
 {
-    private struct WarrantEntry
+    public struct WarrantEntry
     {
         public long Id;
         public uint ClockEpoch;
@@ -186,7 +193,7 @@ public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
     private uint _globalClock = 1;
 
     public string Name => "Warrant-v4";
-    public long EstimatedResidentBytes => _table.LongLength * 16; // 16B per entry
+    public long EstimatedResidentBytes => _table.LongLength * 16; // 16B per entry (8B Id + 4B Clock + 1B Bool + 3B padding)
 
     public Candidate4_WarrantV4(int capacity = 4_194_304) // 4M entries = ~64MB
     {
@@ -201,6 +208,12 @@ public sealed class Candidate4_WarrantV4 : IEapBenchmarkCandidate
         _connStr = connectionString;
         _tableName = tableName;
         return Task.CompletedTask;
+    }
+
+    public void ResetCache()
+    {
+        Array.Clear(_table, 0, _table.Length);
+        _globalClock++;
     }
 
     public async ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default)

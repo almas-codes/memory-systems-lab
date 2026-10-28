@@ -82,13 +82,16 @@ public sealed class EapBooleanBitmap
             int balance = reader.GetInt32(1);
             bool active = reader.GetBoolean(2);
 
-            bool eligible = (balance >= threshold) && active;
-            if (eligible)
+            if ((ulong)(id - 1) < (ulong)_maxId)
             {
-                long ordinal = id - 1;
-                int word = (int)(ordinal >> 6);
-                int bit = (int)(ordinal & 63);
-                _bits[word] |= (1UL << bit);
+                bool eligible = (balance >= threshold) && active;
+                if (eligible)
+                {
+                    long ordinal = id - 1;
+                    int word = (int)(ordinal >> 6);
+                    int bit = (int)(ordinal & 63);
+                    _bits[word] |= (1UL << bit);
+                }
             }
 
             processed++;

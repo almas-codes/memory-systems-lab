@@ -6,6 +6,13 @@ using Npgsql;
 
 namespace NeuroCache.EapResearch;
 
+public enum CategoryEvaluationResult
+{
+    DefiniteFalse = 0,
+    DefiniteTrue = 1,
+    AmbiguousBucket = 2
+}
+
 public sealed class EapPackedCategoryPlane
 {
     private readonly byte[] _categories;
@@ -37,10 +44,16 @@ public sealed class EapPackedCategoryPlane
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool EvaluateThreshold(long id, int threshold)
+    public static bool IsThresholdExact(int threshold)
+    {
+        return threshold >= 0 && threshold <= 195 && (threshold % 13 == 0);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public CategoryEvaluationResult EvaluateThresholdDetailed(long id, int threshold)
     {
         if ((ulong)(id - 1) >= (ulong)_maxId)
-            return false;
+            return CategoryEvaluationResult.DefiniteFalse;
 
         long ordinal = id - 1;
 
@@ -48,15 +61,45 @@ public sealed class EapPackedCategoryPlane
         int activeWord = (int)(ordinal >> 6);
         int activeBit = (int)(ordinal & 63);
         if ((_activeBits[activeWord] & (1UL << activeBit)) == 0)
-            return false;
+            return CategoryEvaluationResult.DefiniteFalse;
 
         // 2. Check 4-bit category
         int byteIndex = (int)(ordinal >> 1);
         byte b = _categories[byteIndex];
         byte cat = (ordinal & 1) == 0 ? (byte)(b & 0x0F) : (byte)(b >> 4);
 
-        byte reqCat = ThresholdToCategory(threshold);
-        return cat >= reqCat;
+        if (threshold <= 0)
+            return CategoryEvaluationResult.DefiniteTrue;
+        if (threshold > 195)
+        {
+            // Cat 15 represents balance >= 195. Higher thresholds are ambiguous if cat == 15
+            return cat == 15 ? CategoryEvaluationResult.AmbiguousBucket : CategoryEvaluationResult.DefiniteFalse;
+        }
+
+        int targetBucket = threshold / 13;
+        int remainder = threshold % 13;
+
+        if (cat > targetBucket)
+            return CategoryEvaluationResult.DefiniteTrue;
+        if (cat < targetBucket)
+            return CategoryEvaluationResult.DefiniteFalse;
+
+        // cat == targetBucket:
+        // If remainder is 0, the threshold aligns exactly with the bucket floor.
+        // Every account in this bucket has balance >= targetBucket * 13 == threshold.
+        if (remainder == 0)
+            return CategoryEvaluationResult.DefiniteTrue;
+
+        // When remainder != 0, the threshold is inside the bucket: ambiguous.
+        return CategoryEvaluationResult.AmbiguousBucket;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool EvaluateThreshold(long id, int threshold)
+    {
+        var result = EvaluateThresholdDetailed(id, threshold);
+        // Fast in-memory evaluation: returns true only if definitely satisfied
+        return result == CategoryEvaluationResult.DefiniteTrue;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

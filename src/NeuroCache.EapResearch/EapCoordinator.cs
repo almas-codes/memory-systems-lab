@@ -9,6 +9,7 @@ public sealed class EapCoordinator : IAsyncDisposable
 {
     private const int ShardCount = 1024;
     private readonly SemaphoreSlim[] _shardLocks = new SemaphoreSlim[ShardCount];
+    private readonly object[] _shardWriterLocks = new object[ShardCount];
     private readonly long[] _shardVersions = new long[ShardCount];
     private readonly string _connectionString;
     private readonly string _tableName;
@@ -40,6 +41,7 @@ public sealed class EapCoordinator : IAsyncDisposable
         for (int i = 0; i < ShardCount; i++)
         {
             _shardLocks[i] = new SemaphoreSlim(1, 1);
+            _shardWriterLocks[i] = new object();
             _shardVersions[i] = 0;
         }
     }
@@ -59,31 +61,63 @@ public sealed class EapCoordinator : IAsyncDisposable
         if (!IsHealthy)
             throw new InvalidOperationException("EAP Coordinator is in unhealthy/desynchronized state; queries must fail-closed or fall back to PostgreSQL.");
 
-        return _categoryPlane.EvaluateThreshold(id, threshold);
+        var detailed = _categoryPlane.EvaluateThresholdDetailed(id, threshold);
+        if (detailed == CategoryEvaluationResult.DefiniteTrue)
+            return true;
+        if (detailed == CategoryEvaluationResult.DefiniteFalse)
+            return false;
+
+        // Ambiguous bucket: fall back to PostgreSQL authoritative ground truth
+        return QueryPostgreSqlExact(id, threshold);
+    }
+
+    public CategoryEvaluationResult QueryThresholdDetailed(long id, int threshold)
+    {
+        if (!IsHealthy)
+            throw new InvalidOperationException("EAP Coordinator is in unhealthy state.");
+
+        return _categoryPlane.EvaluateThresholdDetailed(id, threshold);
+    }
+
+    public bool QueryPostgreSqlExact(long id, int threshold)
+    {
+        using var conn = new NpgsqlConnection(_connectionString);
+        conn.Open();
+        using var cmd = new NpgsqlCommand($"SELECT (balance >= @t AND active) FROM {_tableName} WHERE id = @id;", conn);
+        cmd.Parameters.AddWithValue("t", threshold);
+        cmd.Parameters.AddWithValue("id", id);
+        object? val = cmd.ExecuteScalar();
+        return val is true;
     }
 
     /// <summary>
     /// Publishes an in-memory update across both the Boolean plane and Category plane under Seqlock.
+    /// Serialized per-shard via _shardWriterLocks to prevent concurrent writers from corrupting
+    /// the sequence counter and exposing torn states to readers.
     /// </summary>
     public void PublishCrossPlane(long id, int balance, bool active)
     {
         int shard = GetShard(id);
-        Interlocked.Increment(ref _shardVersions[shard]); // Turn odd (write in progress)
-        try
+        lock (_shardWriterLocks[shard])
         {
-            bool eligible = (balance >= _defaultThreshold) && active;
-            _bitmap.SetEligible(id, eligible);
-            _categoryPlane.SetAccount(id, balance, active);
-        }
-        finally
-        {
-            Interlocked.Increment(ref _shardVersions[shard]); // Turn even (published)
+            Interlocked.Increment(ref _shardVersions[shard]); // Turn odd (write in progress)
+            try
+            {
+                bool eligible = (balance >= _defaultThreshold) && active;
+                _bitmap.SetEligible(id, eligible);
+                _categoryPlane.SetAccount(id, balance, active);
+            }
+            finally
+            {
+                Interlocked.Increment(ref _shardVersions[shard]); // Turn even (published)
+            }
         }
     }
 
     /// <summary>
     /// Evaluates both the Boolean eligibility plane and the Category plane atomically
     /// using a non-blocking Seqlock, preventing torn cross-plane reads.
+    /// Includes starvation mitigation if writes are heavily sustained.
     /// </summary>
     public (bool Eligible, bool CategoryEligible) QueryCrossPlaneConsistent(long id, int threshold)
     {
@@ -103,6 +137,16 @@ public sealed class EapCoordinator : IAsyncDisposable
             {
                 Thread.SpinWait(4);
                 if (++spins > 100) Thread.Yield();
+                if (spins > 500)
+                {
+                    // Reader starvation mitigation: acquire the shard writer lock to guarantee progress
+                    lock (_shardWriterLocks[shard])
+                    {
+                        el = _bitmap.IsEligible(id);
+                        catEl = _categoryPlane.EvaluateThreshold(id, threshold);
+                        return (el, catEl);
+                    }
+                }
                 continue;
             }
 
@@ -129,6 +173,18 @@ public sealed class EapCoordinator : IAsyncDisposable
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
             await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+            // Advisory transaction lock: ensures outbox insertions and commits occur in strict monotonic order,
+            // preventing the outbox sequence-gap anomaly where concurrent uncommitted transactions are skipped.
+            try
+            {
+                await using var advCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext('eap_outbox_lock'));", conn, tx);
+                await advCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Fall back if advisory locks are restricted in the session
+            }
 
             // 1. Authoritative write to PostgreSQL table
             string updateSql = $@"
@@ -222,17 +278,20 @@ public sealed class EapCoordinator : IAsyncDisposable
                 bool active = reader.GetBoolean(3);
 
                 int shard = GetShard(accountId);
-                Interlocked.Increment(ref _shardVersions[shard]);
-                try
-                {
-                    bool eligible = (balance >= _defaultThreshold) && active;
-                    _bitmap.SetEligible(accountId, eligible);
-                    _categoryPlane.SetAccount(accountId, balance, active);
-                    Interlocked.Exchange(ref _lastAppliedMutationSeq, seq);
-                }
-                finally
+                lock (_shardWriterLocks[shard])
                 {
                     Interlocked.Increment(ref _shardVersions[shard]);
+                    try
+                    {
+                        bool eligible = (balance >= _defaultThreshold) && active;
+                        _bitmap.SetEligible(accountId, eligible);
+                        _categoryPlane.SetAccount(accountId, balance, active);
+                        Interlocked.Exchange(ref _lastAppliedMutationSeq, seq);
+                    }
+                    finally
+                    {
+                        Interlocked.Increment(ref _shardVersions[shard]);
+                    }
                 }
                 replayed++;
             }
@@ -245,6 +304,78 @@ public sealed class EapCoordinator : IAsyncDisposable
         }
 
         return replayed;
+    }
+
+    /// <summary>
+    /// Performs an initial synchronized snapshot hydration from PostgreSQL while maintaining
+    /// exact watermark synchronization with the transactional outbox log.
+    /// </summary>
+    public async Task<(long ProcessedRecords, long Watermark, TimeSpan Duration)> HydrateSynchronizedFromPostgreSqlAsync(
+        Action<long, long>? progressCallback = null,
+        CancellationToken ct = default)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+
+        await using var conn = new NpgsqlConnection(_connectionString);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
+
+        // Execute in REPEATABLE READ snapshot to obtain atomic coordination between the table and outbox
+        await using var tx = await conn.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, ct).ConfigureAwait(false);
+
+        // 1. Capture snapshot watermark
+        long snapshotWatermark = 0;
+        try
+        {
+            await using var wmCmd = new NpgsqlCommand($"SELECT COALESCE(MAX(seq_id), 0) FROM {_mutationLogTable};", conn, tx);
+            object? val = await wmCmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+            if (val != null && val != DBNull.Value)
+                snapshotWatermark = Convert.ToInt64(val);
+        }
+        catch
+        {
+            snapshotWatermark = 0;
+        }
+
+        // 2. Stream table rows under identical snapshot
+        string query = $"SELECT id, balance, active FROM {_tableName};";
+        await using var cmd = new NpgsqlCommand(query, conn, tx);
+        cmd.CommandTimeout = 1800;
+
+        await using var reader = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, ct).ConfigureAwait(false);
+
+        long processed = 0;
+        long maxId = _bitmap.MaxId;
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            long id = reader.GetInt64(0);
+            int balance = reader.GetInt32(1);
+            bool active = reader.GetBoolean(2);
+
+            if ((ulong)(id - 1) < (ulong)maxId)
+            {
+                bool eligible = (balance >= _defaultThreshold) && active;
+                _bitmap.SetEligible(id, eligible);
+                _categoryPlane.SetAccount(id, balance, active);
+            }
+
+            processed++;
+            if (progressCallback != null && processed % 1_000_000 == 0)
+            {
+                progressCallback(processed, maxId);
+            }
+        }
+
+        await reader.CloseAsync().ConfigureAwait(false);
+        await tx.CommitAsync(ct).ConfigureAwait(false);
+
+        // Record initial watermark
+        Interlocked.Exchange(ref _lastAppliedMutationSeq, snapshotWatermark);
+
+        // 3. Catch up any mutations committed after the snapshot transaction began
+        int replayed = await ReconcilePendingMutationsAsync(ct).ConfigureAwait(false);
+
+        sw.Stop();
+        return (processed, snapshotWatermark + replayed, sw.Elapsed);
     }
 
     public ValueTask DisposeAsync()

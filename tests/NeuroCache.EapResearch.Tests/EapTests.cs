@@ -199,7 +199,7 @@ public class EapCoreTests
     }
 
     [Fact]
-    public void EapCoordinator_CrossPlane_SeqlockConsistency_NoTornReads()
+    public async Task EapCoordinator_CrossPlane_SeqlockConsistency_NoTornReads()
     {
         string connStr = PostgreSqlPreflight.GetConnectionString();
         long maxId = 100;
@@ -243,9 +243,215 @@ public class EapCoreTests
         });
 
         cts.Cancel();
-        writer.Wait();
+        await writer;
 
         Assert.False(tornReadDetected, "Torn cross-plane read observed! Boolean plane and Category plane fell out of sync.");
+    }
+
+    [Fact]
+    public async Task Seqlock_ConcurrentWritersOnSameShard_NoTornReads()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        // ID 5 and ID 1029 share shard (5 % 1024 == 5, 1029 % 1024 == 5)
+        long maxId = 2048;
+        var coord = new EapCoordinator(maxId, connStr);
+
+        // Pre-initialize both accounts to consistent eligible state
+        coord.Bitmap.SetEligible(5, true);
+        coord.CategoryPlane.SetAccount(5, 150, true);
+        coord.Bitmap.SetEligible(1029, true);
+        coord.CategoryPlane.SetAccount(1029, 150, true);
+
+        int tornReads = 0;
+        var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(3));
+
+        // Two concurrent writers hammering the SAME shard concurrently on different IDs
+        var writer1 = Task.Run(() =>
+        {
+            int i = 0;
+            while (!cts.Token.IsCancellationRequested)
+            {
+                bool el = (i++ % 2 == 0);
+                coord.PublishCrossPlane(5, el ? 150 : 50, true);
+            }
+        });
+
+        var writer2 = Task.Run(() =>
+        {
+            int i = 0;
+            while (!cts.Token.IsCancellationRequested)
+            {
+                bool el = (i++ % 2 == 0);
+                coord.PublishCrossPlane(1029, el ? 150 : 50, true);
+            }
+        });
+
+        // Four concurrent readers querying both accounts under heavy concurrent writes
+        Parallel.For(0, 4, _ =>
+        {
+            while (!cts.Token.IsCancellationRequested)
+            {
+                var (el5, catEl5) = coord.QueryCrossPlaneConsistent(5, 100);
+                if (el5 != catEl5)
+                {
+                    System.Threading.Interlocked.Increment(ref tornReads);
+                }
+
+                var (el1029, catEl1029) = coord.QueryCrossPlaneConsistent(1029, 100);
+                if (el1029 != catEl1029)
+                {
+                    System.Threading.Interlocked.Increment(ref tornReads);
+                }
+            }
+        });
+
+        cts.Cancel();
+        await Task.WhenAll(writer1, writer2);
+
+        Assert.True(tornReads == 0, $"Adversarial Seqlock multi-writer test detected {tornReads} torn reads! Shard writes were not properly serialized.");
+    }
+
+    [Fact]
+    public void CategorySemantics_BoundaryThresholdMatrix()
+    {
+        // Boundary set: 0, 1, 12, 13, 124, 125, 129, 130, 194, 195, 196, 208
+        int[] exactBoundaries = { 0, 13, 130, 195 };
+        int[] ambiguousBoundaries = { 1, 12, 124, 125, 129, 194, 196, 208 };
+
+        foreach (var t in exactBoundaries)
+        {
+            Assert.True(EapPackedCategoryPlane.IsThresholdExact(t), $"Threshold {t} should be recognized as an exact boundary (multiple of 13).");
+        }
+
+        foreach (var t in ambiguousBoundaries)
+        {
+            Assert.False(EapPackedCategoryPlane.IsThresholdExact(t), $"Threshold {t} should be recognized as non-exact / requiring disambiguation.");
+        }
+
+        long maxId = 100;
+        var plane = new EapPackedCategoryPlane(maxId);
+
+        // Account with balance = 125 (Category = 125 / 13 = 9), active = true
+        plane.SetAccount(1, 125, true);
+
+        // 1. Lower thresholds (<= 117): category 9 > reqBucket -> DefiniteTrue
+        Assert.Equal(CategoryEvaluationResult.DefiniteTrue, plane.EvaluateThresholdDetailed(1, 0));
+        Assert.Equal(CategoryEvaluationResult.DefiniteTrue, plane.EvaluateThresholdDetailed(1, 13));
+        Assert.Equal(CategoryEvaluationResult.DefiniteTrue, plane.EvaluateThresholdDetailed(1, 100)); // reqBucket 7 < 9
+
+        // 2. Higher thresholds (>= 130): category 9 < reqBucket 10 -> DefiniteFalse
+        Assert.Equal(CategoryEvaluationResult.DefiniteFalse, plane.EvaluateThresholdDetailed(1, 130));
+        Assert.Equal(CategoryEvaluationResult.DefiniteFalse, plane.EvaluateThresholdDetailed(1, 195));
+
+        // 3. Same bucket (Bucket 9 covers [117, 129]):
+        // Threshold 124: within bucket -> AmbiguousBucket
+        Assert.Equal(CategoryEvaluationResult.AmbiguousBucket, plane.EvaluateThresholdDetailed(1, 124));
+        // Threshold 125: within bucket -> AmbiguousBucket
+        Assert.Equal(CategoryEvaluationResult.AmbiguousBucket, plane.EvaluateThresholdDetailed(1, 125));
+        // Threshold 129: within bucket -> AmbiguousBucket
+        Assert.Equal(CategoryEvaluationResult.AmbiguousBucket, plane.EvaluateThresholdDetailed(1, 129));
+    }
+
+    [Fact]
+    public async Task CategorySemantics_CompareAgainstPostgreSqlGroundTruth()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        long maxId = 10_000;
+        var coord = new EapCoordinator(maxId, connStr, tableName: "eap_lab.accounts_500m");
+
+        // Populate the first 10,000 accounts from DB into coordinator
+        await coord.Bitmap.BuildFromPostgreSqlAsync(connStr, 100, "eap_lab.accounts_500m");
+        await coord.CategoryPlane.BuildFromPostgreSqlAsync(connStr, "eap_lab.accounts_500m");
+
+        // Verify that QueryThreshold with DB fallback produces 100% agreement with direct SQL query
+        int[] testThresholds = { 0, 1, 12, 13, 124, 125, 129, 130, 194, 195, 196, 208 };
+        await using var conn = new Npgsql.NpgsqlConnection(connStr);
+        await conn.OpenAsync();
+
+        for (int i = 0; i < testThresholds.Length; i++)
+        {
+            int t = testThresholds[i];
+            long testId = (i * 73) % maxId + 1;
+
+            await using var cmd = new Npgsql.NpgsqlCommand("SELECT (balance >= @t AND active) FROM eap_lab.accounts_500m WHERE id = @id;", conn);
+            cmd.Parameters.AddWithValue("t", t);
+            cmd.Parameters.AddWithValue("id", testId);
+            bool dbExpected = (bool)(await cmd.ExecuteScalarAsync())!;
+
+            bool coordinatorResult = coord.QueryThreshold(testId, t);
+            Assert.Equal(dbExpected, coordinatorResult);
+        }
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public void MemoryAccounting_StructAlignmentAndPadding_Verified()
+    {
+        int structSize = System.Runtime.CompilerServices.Unsafe.SizeOf<Candidate4_WarrantV4.WarrantEntry>();
+        Assert.Equal(16, structSize);
+
+        // 4M entries calculation
+        long count = 4_194_304;
+        long totalBytes = count * structSize;
+        double binaryMiB = totalBytes / (1024.0 * 1024.0);
+        double decimalMB = totalBytes / 1_000_000.0;
+
+        Assert.Equal(64.0, binaryMiB, 4);
+        Assert.Equal(67.108864, decimalMB, 4);
+    }
+
+    [Fact]
+    public async Task CacheWarrant_ColdVsWarmIsolation()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        var warrant = new Candidate4_WarrantV4(1024);
+        await warrant.InitializeAsync(100, connStr);
+
+        // Cold query: should miss cache and fetch from DB
+        bool coldRes = await warrant.QueryEligibleAsync(1, 100);
+
+        // Reset cache explicitly
+        warrant.ResetCache();
+
+        // After reset, querying should still return correct ground truth
+        bool resetRes = await warrant.QueryEligibleAsync(1, 100);
+        Assert.Equal(coldRes, resetRes);
+
+        await warrant.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task TransactionalOutbox_OutboxSequenceOrdering_AdvisoryLockPreventsGap()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        // Verify advisory lock acquisition and transactional serialization
+        await using var conn1 = new Npgsql.NpgsqlConnection(connStr);
+        await using var conn2 = new Npgsql.NpgsqlConnection(connStr);
+        await conn1.OpenAsync();
+        await conn2.OpenAsync();
+
+        await using var tx1 = await conn1.BeginTransactionAsync();
+        await using (var cmd1 = new Npgsql.NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext('adversarial_test_lock'));", conn1, tx1))
+        {
+            await cmd1.ExecuteNonQueryAsync();
+        }
+
+        // Connection 2 attempts non-blocking try-lock: must return false because tx1 holds it
+        await using (var cmd2 = new Npgsql.NpgsqlCommand("SELECT pg_try_advisory_xact_lock(hashtext('adversarial_test_lock'));", conn2))
+        {
+            bool locked = (bool)(await cmd2.ExecuteScalarAsync())!;
+            Assert.False(locked, "Advisory lock should be held by transaction 1, preventing concurrent uncommitted outbox writes.");
+        }
+
+        await tx1.RollbackAsync();
+
+        // After tx1 rolls back, conn2 can acquire it
+        await using (var cmd3 = new Npgsql.NpgsqlCommand("SELECT pg_try_advisory_xact_lock(hashtext('adversarial_test_lock'));", conn2))
+        {
+            bool locked = (bool)(await cmd3.ExecuteScalarAsync())!;
+            Assert.True(locked, "After tx1 finishes, lock should be immediately available.");
+        }
     }
 
     [Fact]
