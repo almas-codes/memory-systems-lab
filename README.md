@@ -105,6 +105,7 @@ memory-systems-lab/
 │   ├── NeuroCache.ScaleTests/        # Bounded streaming memory allocation verification
 │   └── NeuroCache.EapResearch.Tests/ # EAP bitmap indexing, category packing, and consistency tests
 ├── docs/
+│   ├── FINAL-50M-VALIDATION.md           # Master final correctness gate & 50M performance validation
 │   ├── FINAL-EVIDENCE-RECONCILIATION.md  # Definitive evidence reconciliation, benchmarks & readiness verdict
 │   ├── MASTER-RESEARCH-REPORT.md         # Full unified research and architecture report
 │   ├── BENCHMARK-REPORT.md               # Empirical benchmark report and comparison matrix
@@ -175,6 +176,7 @@ dotnet run -c Release --project src/NeuroCache.Cli -- eap-benchmark --count 1000
 ## 6. Detailed Research & Audit Reports
 
 For in-depth mathematical proofs, latency quantile distributions, memory charts, and systems analysis:
+- 🏆 [Master 50M Validation (Production Gate & Correctness Proofs)](docs/FINAL-50M-VALIDATION.md)
 - ⚖️ [Final Evidence Reconciliation (Definitive Audit & Decision)](docs/FINAL-EVIDENCE-RECONCILIATION.md)
 - 📖 [Master Research Report (Full Unified Publication)](docs/MASTER-RESEARCH-REPORT.md)
 - 📊 [Benchmark Results Report & Comparative Matrix](docs/BENCHMARK-REPORT.md)

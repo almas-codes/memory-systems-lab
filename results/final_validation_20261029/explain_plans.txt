@@ -1,0 +1,18 @@
+=== CANDIDATE 1: DIRECT QUERY (Heap Fetch) on eap_audit_20261028.accounts_50m ===
+Index Scan using idx_accounts_50m_covering on eap_audit_20261028.accounts_50m  (cost=0.56..8.59 rows=1 width=1) (actual time=0.134..0.136 rows=1 loops=1)
+  Output: ((balance >= 100) AND active AND (version >= 0))
+  Index Cond: (accounts_50m.id = 42)
+  Buffers: shared hit=8
+Planning:
+  Buffers: shared hit=59
+Planning Time: 4.786 ms
+Execution Time: 0.160 ms
+
+=== CANDIDATE 2: COVERING INDEX CANDIDATE on eap_audit_20261028.accounts_50m ===
+Index Only Scan using idx_accounts_50m_covering on eap_audit_20261028.accounts_50m  (cost=0.56..8.58 rows=1 width=1) (actual time=0.282..0.284 rows=1 loops=1)
+  Output: ((balance >= 100) AND active)
+  Index Cond: (accounts_50m.id = 42)
+  Heap Fetches: 1
+  Buffers: shared hit=6
+Planning Time: 0.130 ms
+Execution Time: 0.308 ms

@@ -1,0 +1,34 @@
+{
+  "Dataset": "eap_audit_20261028.accounts_50m",
+  "Records": 50000000,
+  "RawBitTightLoop": {
+    "NsPerQuery": 7.82142,
+    "OpsPerSec": 127854021.39253487
+  },
+  "EapBooleanBitmap": {
+    "NsPerQuery": 12.32718,
+    "OpsPerSec": 81121554.1591832
+  },
+  "EapCoordinator": {
+    "NsPerQuery": 14.5157,
+    "OpsPerSec": 68890924.99844995
+  },
+  "CandidateValueTask": {
+    "NsPerQuery": 46.13758,
+    "OpsPerSec": 21674305.41437154
+  },
+  "PostgreSqlCovering": {
+    "MeanUs": 1442.7576500000014,
+    "P50Us": 1096.6,
+    "P95Us": 1527.8,
+    "P99Us": 1990.2,
+    "OpsPerSec": 692.924269648292
+  },
+  "PostgreSqlDirect": {
+    "MeanUs": 649.2845500000002,
+    "P50Us": 634.7,
+    "P95Us": 834.9,
+    "P99Us": 1162.3,
+    "OpsPerSec": 1539.5475115908685
+  }
+}

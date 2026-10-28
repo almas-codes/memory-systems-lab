@@ -314,6 +314,8 @@ public sealed class EapCoordinator : IAsyncDisposable
     /// </summary>
     public async Task<(long ProcessedRecords, long Watermark, TimeSpan Duration)> HydrateSynchronizedFromPostgreSqlAsync(
         Action<long, long>? progressCallback = null,
+        Func<long, Task>? onSnapshotAcquired = null,
+        Func<long, Task>? onRowProcessed = null,
         CancellationToken ct = default)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -336,6 +338,12 @@ public sealed class EapCoordinator : IAsyncDisposable
         catch
         {
             snapshotWatermark = 0;
+        }
+
+        // Test hook: allows deterministic mutations to be performed immediately after snapshot isolation watermark is acquired
+        if (onSnapshotAcquired != null)
+        {
+            await onSnapshotAcquired(snapshotWatermark).ConfigureAwait(false);
         }
 
         // 2. Stream table rows under identical snapshot
@@ -366,6 +374,10 @@ public sealed class EapCoordinator : IAsyncDisposable
                 _categoryPlane.SetAccount(id, balance, active);
 
                 processed++;
+                if (onRowProcessed != null)
+                {
+                    await onRowProcessed(processed).ConfigureAwait(false);
+                }
                 if (progressCallback != null && processed % 1_000_000 == 0)
                 {
                     progressCallback(processed, maxId);

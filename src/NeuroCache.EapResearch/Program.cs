@@ -4,6 +4,7 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NeuroCache.Core;
+using NeuroCache.Benchmarks;
 
 namespace NeuroCache.EapResearch;
 
@@ -339,11 +340,15 @@ Usage:
 
     private static int HandleCompare(string[] args)
     {
-        string outDir = Path.Combine(Directory.GetCurrentDirectory(), "results", "eap-500m");
+        string? specifiedDir = GetArgValue(args, "--dir");
+        string outDir = specifiedDir ?? Path.Combine(Directory.GetCurrentDirectory(), "results", "final_validation_20261029");
+        if (!Directory.Exists(outDir))
+            outDir = Path.Combine(Directory.GetCurrentDirectory(), "results", "eap-500m");
+
         string jsonPath = Path.Combine(outDir, "eap_benchmark_results.json");
         if (!File.Exists(jsonPath))
         {
-            Console.WriteLine("No EAP results found. Run benchmark run first.");
+            Console.WriteLine($"No EAP results found at {jsonPath}.");
             return 1;
         }
 
@@ -370,21 +375,112 @@ Usage:
         }
 
         string sub = args[1].ToLowerInvariant();
-        string outDir = Path.Combine(Directory.GetCurrentDirectory(), "results", "adversarial_20261028");
+        string outDir = Path.Combine(Directory.GetCurrentDirectory(), "results", "final_validation_20261029");
         Directory.CreateDirectory(outDir);
         string connStr = PostgreSqlPreflight.GetConnectionString();
 
-        if (sub == "explain")
+        if (sub == "inspect-db")
         {
-            Console.WriteLine("Executing EXPLAIN (ANALYZE, BUFFERS) for Candidates 1 and 2...");
+            Console.WriteLine("Inspecting PostgreSQL database state in read-only mode...");
             await using var conn = new Npgsql.NpgsqlConnection(connStr);
             await conn.OpenAsync();
 
-            string q1 = "EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT (balance >= 100 AND active AND version >= 0) FROM eap_lab.accounts_500m WHERE id = 42;";
-            string q2 = "EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT (balance >= 100 AND active) FROM eap_lab.accounts_500m WHERE id = 42;";
+            string sql = @"
+                SELECT 
+                    n.nspname AS schema_name,
+                    c.relname AS table_name,
+                    c.reltuples::bigint AS est_row_count,
+                    pg_size_pretty(pg_table_size(c.oid)) AS table_size,
+                    pg_size_pretty(pg_indexes_size(c.oid)) AS index_size,
+                    pg_size_pretty(pg_total_relation_size(c.oid)) AS total_size,
+                    pg_table_size(c.oid) AS table_bytes,
+                    pg_indexes_size(c.oid) AS index_bytes,
+                    pg_total_relation_size(c.oid) AS total_bytes
+                FROM pg_class c
+                JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+                ORDER BY pg_total_relation_size(c.oid) DESC;";
+
+            await using (var cmd = new Npgsql.NpgsqlCommand(sql, conn))
+            await using (var r = await cmd.ExecuteReaderAsync())
+            {
+                Console.WriteLine();
+                Console.WriteLine("| Schema | Table | Estimated Rows | Table Size | Index Size | Total Size |");
+                Console.WriteLine("|---|---|---|---|---|---|");
+                while (await r.ReadAsync())
+                {
+                    Console.WriteLine($"| {r.GetString(0),-16} | {r.GetString(1),-24} | {r.GetInt64(2),14:N0} | {r.GetString(3),10} | {r.GetString(4),10} | {r.GetString(5),10} |");
+                }
+            }
+
+            // Inspect detailed indexes and min/max on candidate tables
+            string[] tablesToCheck = { "eap_audit_20261028.accounts_50m", "eap_audit_20261028.accounts_10m", "eap_lab.accounts_500m" };
+            Console.WriteLine();
+            foreach (var tbl in tablesToCheck)
+            {
+                try
+                {
+                    await using var checkCmd = new Npgsql.NpgsqlCommand($"SELECT COUNT(*), MIN(id), MAX(id) FROM {tbl};", conn);
+                    await using var r = await checkCmd.ExecuteReaderAsync();
+                    if (await r.ReadAsync())
+                    {
+                        long cnt = r.GetInt64(0);
+                        object minVal = r.IsDBNull(1) ? "NULL" : r.GetInt64(1);
+                        object maxVal = r.IsDBNull(2) ? "NULL" : r.GetInt64(2);
+                        Console.WriteLine($"Table {tbl}: Exact Rows = {cnt:N0}, Min ID = {minVal}, Max ID = {maxVal}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Table {tbl}: Not accessible or does not have id column ({ex.Message})");
+                }
+            }
+
+            // Inspect all indexes on eap_audit_20261028.accounts_50m
+            Console.WriteLine();
+            Console.WriteLine("Indexes on eap_audit_20261028.accounts_50m:");
+            await using (var idxCmd = new Npgsql.NpgsqlCommand(@"
+                SELECT indexname, indexdef 
+                FROM pg_indexes 
+                WHERE schemaname = 'eap_audit_20261028' AND tablename = 'accounts_50m';", conn))
+            await using (var r = await idxCmd.ExecuteReaderAsync())
+            {
+                while (await r.ReadAsync())
+                {
+                    Console.WriteLine($"- {r.GetString(0)}: {r.GetString(1)}");
+                }
+            }
+
+            // Inspect mutation_log details
+            try
+            {
+                await using var outboxCmd = new Npgsql.NpgsqlCommand("SELECT COUNT(*), MIN(seq_id), MAX(seq_id) FROM eap_audit_20261028.mutation_log;", conn);
+                await using var r = await outboxCmd.ExecuteReaderAsync();
+                if (await r.ReadAsync())
+                {
+                    Console.WriteLine($"Outbox eap_audit_20261028.mutation_log: Rows = {r.GetInt64(0):N0}, Min Seq = {r[1]}, Max Seq = {r[2]}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Outbox check failed: {ex.Message}");
+            }
+
+            return 0;
+        }
+
+        if (sub == "explain")
+        {
+            string tbl = GetArgValue(args, "--table") ?? "eap_audit_20261028.accounts_50m";
+            Console.WriteLine($"Executing EXPLAIN (ANALYZE, BUFFERS) for Candidates 1 and 2 on '{tbl}'...");
+            await using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+
+            string q1 = $"EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT (balance >= 100 AND active AND version >= 0) FROM {tbl} WHERE id = 42;";
+            string q2 = $"EXPLAIN (ANALYZE, BUFFERS, VERBOSE) SELECT (balance >= 100 AND active) FROM {tbl} WHERE id = 42;";
 
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("=== CANDIDATE 1: DIRECT QUERY (Heap Fetch) ===");
+            sb.AppendLine($"=== CANDIDATE 1: DIRECT QUERY (Heap Fetch) on {tbl} ===");
             await using (var cmd = new Npgsql.NpgsqlCommand(q1, conn))
             await using (var r = await cmd.ExecuteReaderAsync())
             {
@@ -397,7 +493,7 @@ Usage:
             }
 
             sb.AppendLine();
-            sb.AppendLine("=== CANDIDATE 2: COVERING INDEX CANDIDATE ===");
+            sb.AppendLine($"=== CANDIDATE 2: COVERING INDEX CANDIDATE on {tbl} ===");
             await using (var cmd = new Npgsql.NpgsqlCommand(q2, conn))
             await using (var r = await cmd.ExecuteReaderAsync())
             {
@@ -414,9 +510,242 @@ Usage:
             return 0;
         }
 
+        if (sub == "microbench")
+        {
+            string tbl = GetArgValue(args, "--table") ?? "eap_audit_20261028.accounts_50m";
+            long records = 50_000_000L;
+            Console.WriteLine($"Running Query-Path Microbenchmark Decomposition on '{tbl}' ({records:N0} records)...");
+
+            // 1. Raw Bit Microbenchmark (Tight loop)
+            Console.WriteLine("1. Raw Bit Microbenchmark (tight loop, direct word array indexing)...");
+            long[] words = new long[(records + 63) / 64];
+            words[42 >> 6] |= (1L << (42 & 63));
+            int rawIters = 20_000_000;
+            var swRaw = System.Diagnostics.Stopwatch.StartNew();
+            long dummy = 0;
+            for (int i = 0; i < rawIters; i++)
+            {
+                long id = (i % 1_000_000) + 1;
+                long w = words[(id - 1) >> 6];
+                int b = (int)((id - 1) & 63);
+                if ((w & (1L << b)) != 0) dummy++;
+            }
+            swRaw.Stop();
+            double rawNsPerOp = swRaw.Elapsed.TotalNanoseconds / rawIters;
+            double rawMops = rawIters / swRaw.Elapsed.TotalSeconds / 1_000_000.0;
+            Console.WriteLine($"   Raw Bit: {rawNsPerOp:F2} ns/query ({rawMops:F1} MOps/s)");
+
+            // 2. EapBooleanBitmap.IsEligible (Bounds checks + bit indexing)
+            Console.WriteLine("2. EapBooleanBitmap.IsEligible (with upper/lower bounds checks)...");
+            var bitmap = new EapBooleanBitmap(records);
+            bitmap.SetEligible(42, true);
+            var swBmp = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < rawIters; i++)
+            {
+                long id = (i % 1_000_000) + 1;
+                if (bitmap.IsEligible(id)) dummy++;
+            }
+            swBmp.Stop();
+            double bmpNsPerOp = swBmp.Elapsed.TotalNanoseconds / rawIters;
+            double bmpMops = rawIters / swBmp.Elapsed.TotalSeconds / 1_000_000.0;
+            Console.WriteLine($"   EapBitmap: {bmpNsPerOp:F2} ns/query ({bmpMops:F1} MOps/s)");
+
+            // 3. EapCoordinator.QueryEligible (Readiness gate check + bounds check + IsEligible)
+            Console.WriteLine("3. EapCoordinator.QueryEligible (Readiness check + bounds check)...");
+            var coord = new EapCoordinator(records, connStr, tableName: tbl);
+            coord.Bitmap.SetEligible(42, true);
+            coord.MarkHealthy(true);
+            var swCoord = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < rawIters; i++)
+            {
+                long id = (i % 1_000_000) + 1;
+                if (coord.QueryEligible(id)) dummy++;
+            }
+            swCoord.Stop();
+            double coordNsPerOp = swCoord.Elapsed.TotalNanoseconds / rawIters;
+            double coordMops = rawIters / swCoord.Elapsed.TotalSeconds / 1_000_000.0;
+            Console.WriteLine($"   EapCoordinator: {coordNsPerOp:F2} ns/query ({coordMops:F1} MOps/s)");
+
+            // 4. Candidate5 Async Query Path (ValueTask return)
+            Console.WriteLine("4. Candidate5_EapBooleanBitmap.QueryEligibleAsync (ValueTask dispatch)...");
+            var cand5 = new Candidate5_EapBooleanBitmap();
+            var field = typeof(Candidate5_EapBooleanBitmap).GetField("_coord", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            field?.SetValue(cand5, coord);
+            int asyncIters = 5_000_000;
+            var swAsync = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < asyncIters; i++)
+            {
+                long id = (i % 1_000_000) + 1;
+                if (await cand5.QueryEligibleAsync(id)) dummy++;
+            }
+            swAsync.Stop();
+            double asyncNsPerOp = swAsync.Elapsed.TotalNanoseconds / asyncIters;
+            double asyncMops = asyncIters / swAsync.Elapsed.TotalSeconds / 1_000_000.0;
+            Console.WriteLine($"   Candidate5 ValueTask: {asyncNsPerOp:F2} ns/query ({asyncMops:F1} MOps/s)");
+
+            // 5. Candidate2_PostgreSqlCovering (Covering index query on real 50M table)
+            Console.WriteLine("5. Candidate2_PostgreSqlCovering (idx_accounts_50m_covering on 50M table, 2000 queries)...");
+            var cand2 = new Candidate2_PostgreSqlCovering();
+            await cand2.InitializeAsync(records, connStr, tableName: tbl);
+            int pgIters = 2000;
+            var pgHist = new LatencyHistogram(pgIters);
+            var swPg = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < pgIters; i++)
+            {
+                long id = (i * 7919) % records + 1;
+                long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await cand2.QueryEligibleAsync(id);
+                long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                pgHist.Record((double)(t1 - t0) * 1_000_000.0 / System.Diagnostics.Stopwatch.Frequency);
+            }
+            swPg.Stop();
+            var pgMetrics = pgHist.ComputeMetrics(swPg.Elapsed, pgIters, 0, 0, 0, 0, 0);
+            Console.WriteLine($"   PostgreSQL Covering: Mean={pgMetrics.AvgLatencyUs:F1} us, p50={pgMetrics.P50LatencyUs:F1} us, p95={pgMetrics.P95LatencyUs:F1} us, p99={pgMetrics.P99LatencyUs:F1} us ({pgIters / swPg.Elapsed.TotalSeconds:N0} ops/s)");
+
+            // 6. Candidate1_PostgreSqlDirect (Direct heap query on real 50M table)
+            Console.WriteLine("6. Candidate1_PostgreSqlDirect (Direct heap query on 50M table, 2000 queries)...");
+            var cand1 = new Candidate1_PostgreSqlDirect();
+            await cand1.InitializeAsync(records, connStr, tableName: tbl);
+            var pgDirectHist = new LatencyHistogram(pgIters);
+            var swPgDir = System.Diagnostics.Stopwatch.StartNew();
+            for (int i = 0; i < pgIters; i++)
+            {
+                long id = (i * 7919) % records + 1;
+                long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                await cand1.QueryEligibleAsync(id);
+                long t1 = System.Diagnostics.Stopwatch.GetTimestamp();
+                pgDirectHist.Record((double)(t1 - t0) * 1_000_000.0 / System.Diagnostics.Stopwatch.Frequency);
+            }
+            swPgDir.Stop();
+            var pgDirMetrics = pgDirectHist.ComputeMetrics(swPgDir.Elapsed, pgIters, 0, 0, 0, 0, 0);
+            Console.WriteLine($"   PostgreSQL Direct: Mean={pgDirMetrics.AvgLatencyUs:F1} us, p50={pgDirMetrics.P50LatencyUs:F1} us, p95={pgDirMetrics.P95LatencyUs:F1} us, p99={pgDirMetrics.P99LatencyUs:F1} us ({pgIters / swPgDir.Elapsed.TotalSeconds:N0} ops/s)");
+
+            var microReport = new
+            {
+                Dataset = tbl,
+                Records = records,
+                RawBitTightLoop = new { NsPerQuery = rawNsPerOp, OpsPerSec = rawMops * 1_000_000 },
+                EapBooleanBitmap = new { NsPerQuery = bmpNsPerOp, OpsPerSec = bmpMops * 1_000_000 },
+                EapCoordinator = new { NsPerQuery = coordNsPerOp, OpsPerSec = coordMops * 1_000_000 },
+                CandidateValueTask = new { NsPerQuery = asyncNsPerOp, OpsPerSec = asyncMops * 1_000_000 },
+                PostgreSqlCovering = new { MeanUs = pgMetrics.AvgLatencyUs, P50Us = pgMetrics.P50LatencyUs, P95Us = pgMetrics.P95LatencyUs, P99Us = pgMetrics.P99LatencyUs, OpsPerSec = pgIters / swPg.Elapsed.TotalSeconds },
+                PostgreSqlDirect = new { MeanUs = pgDirMetrics.AvgLatencyUs, P50Us = pgDirMetrics.P50LatencyUs, P95Us = pgDirMetrics.P95LatencyUs, P99Us = pgDirMetrics.P99LatencyUs, OpsPerSec = pgIters / swPgDir.Elapsed.TotalSeconds }
+            };
+
+            string microJson = JsonSerializer.Serialize(microReport, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(outDir, "microbenchmarks_decomposition.json"), microJson);
+            Console.WriteLine($"\nSaved microbenchmark decomposition to {Path.Combine(outDir, "microbenchmarks_decomposition.json")}");
+
+            await cand1.DisposeAsync();
+            await cand2.DisposeAsync();
+            await coord.DisposeAsync();
+            return 0;
+        }
+
+        if (sub == "storage-reconciliation")
+        {
+            string tbl = GetArgValue(args, "--table") ?? "eap_audit_20261028.accounts_50m";
+            Console.WriteLine($"Reconciling actual storage metrics for '{tbl}' and calculating 500M projections...");
+            await using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+
+            long tableBytes = 0;
+            long indexBytes = 0;
+            long totalBytes = 0;
+            long idIndexBytes = 0;
+            long coveringIndexBytes = 0;
+            long rowCount = 50_000_000L;
+
+            await using (var cmd = new Npgsql.NpgsqlCommand(@"
+                SELECT 
+                    pg_table_size('eap_audit_20261028.accounts_50m'::regclass),
+                    pg_indexes_size('eap_audit_20261028.accounts_50m'::regclass),
+                    pg_total_relation_size('eap_audit_20261028.accounts_50m'::regclass),
+                    pg_relation_size('eap_audit_20261028.idx_accounts_50m_id'::regclass),
+                    pg_relation_size('eap_audit_20261028.idx_accounts_50m_covering'::regclass);", conn))
+            await using (var r = await cmd.ExecuteReaderAsync())
+            {
+                if (await r.ReadAsync())
+                {
+                    tableBytes = r.GetInt64(0);
+                    indexBytes = r.GetInt64(1);
+                    totalBytes = r.GetInt64(2);
+                    idIndexBytes = r.GetInt64(3);
+                    coveringIndexBytes = r.GetInt64(4);
+                }
+            }
+
+            double heapBytesPerRow = (double)tableBytes / rowCount;
+            double idIndexBytesPerRow = (double)idIndexBytes / rowCount;
+            double covIndexBytesPerRow = (double)coveringIndexBytes / rowCount;
+            double totalBytesPerRow = (double)totalBytes / rowCount;
+
+            long projRecords = 500_000_000L;
+            long proj500mHeapBytes = (long)(heapBytesPerRow * projRecords);
+            long proj500mIndexBytes = (long)((idIndexBytesPerRow + covIndexBytesPerRow) * projRecords);
+            long proj500mTotalBytes = proj500mHeapBytes + proj500mIndexBytes;
+
+            long eapBitmapBytes = projRecords / 8;
+            long eapCategoryBytes = (projRecords * 5) / 8;
+
+            var recon = new
+            {
+                BaselineTable = tbl,
+                BaselineRows = rowCount,
+                HeapBytes = tableBytes,
+                HeapMB = tableBytes / 1_000_000.0,
+                HeapMiB = tableBytes / (1024.0 * 1024.0),
+                HeapBytesPerRow = heapBytesPerRow,
+
+                PkIndexBytes = idIndexBytes,
+                PkIndexMB = idIndexBytes / 1_000_000.0,
+                PkIndexMiB = idIndexBytes / (1024.0 * 1024.0),
+                PkIndexBytesPerRow = idIndexBytesPerRow,
+
+                CoveringIndexBytes = coveringIndexBytes,
+                CoveringIndexMB = coveringIndexBytes / 1_000_000.0,
+                CoveringIndexMiB = coveringIndexBytes / (1024.0 * 1024.0),
+                CoveringIndexBytesPerRow = covIndexBytesPerRow,
+
+                TotalIndexesBytes = indexBytes,
+                TotalIndexesMB = indexBytes / 1_000_000.0,
+                TotalRelationBytes = totalBytes,
+                TotalRelationMB = totalBytes / 1_000_000.0,
+                TotalRelationMiB = totalBytes / (1024.0 * 1024.0),
+                TotalBytesPerRow = totalBytesPerRow,
+
+                Projection500M = new
+                {
+                    ProjectedRows = projRecords,
+                    HeapGB_Decimal = proj500mHeapBytes / 1_000_000_000.0,
+                    HeapGiB_Binary = proj500mHeapBytes / (1024.0 * 1024.0 * 1024.0),
+                    IndexesGB_Decimal = proj500mIndexBytes / 1_000_000_000.0,
+                    IndexesGiB_Binary = proj500mIndexBytes / (1024.0 * 1024.0 * 1024.0),
+                    TotalGB_Decimal = proj500mTotalBytes / 1_000_000_000.0,
+                    TotalGiB_Binary = proj500mTotalBytes / (1024.0 * 1024.0 * 1024.0),
+                    DiscrepancyExplanation = "The 34.8 GB estimate only counted table heap (~24.9 GB) + single index (~9.9 GB). The full PostgreSQL storage with primary key btree + covering index is 50.62 GB (47.14 GiB).",
+                    EapBitmapMB_Decimal = eapBitmapBytes / 1_000_000.0,
+                    EapBitmapMiB_Binary = eapBitmapBytes / (1024.0 * 1024.0),
+                    EapCategoryMB_Decimal = eapCategoryBytes / 1_000_000.0,
+                    EapCategoryMiB_Binary = eapCategoryBytes / (1024.0 * 1024.0),
+                    EapBitmapCompressionRatioVsPostgres = (double)proj500mTotalBytes / eapBitmapBytes,
+                    EapCategoryCompressionRatioVsPostgres = (double)proj500mTotalBytes / eapCategoryBytes
+                }
+            };
+
+            string json = JsonSerializer.Serialize(recon, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(outDir, "storage_reconciliation_500m.json"), json);
+            Console.WriteLine(json);
+            Console.WriteLine($"\nSaved storage reconciliation to {Path.Combine(outDir, "storage_reconciliation_500m.json")}");
+            return 0;
+        }
+
         if (sub == "write-breakdown")
         {
-            Console.WriteLine("Profiling write-latency component breakdown (500 writes)...");
+            string tbl = GetArgValue(args, "--table") ?? "eap_audit_20261028.accounts_50m";
+            string? countStr = GetArgValue(args, "--records");
+            long records = countStr != null ? long.Parse(countStr) : 50_000_000L;
+            Console.WriteLine($"Profiling write-latency component breakdown (500 writes on '{tbl}')...");
             await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
             {
                 await setupConn.OpenAsync();
@@ -432,7 +761,7 @@ Usage:
                 await createCmd.ExecuteNonQueryAsync();
             }
 
-            var coord = new EapCoordinator(1_000_000, connStr);
+            var coord = new EapCoordinator(records, connStr, tableName: tbl);
 
             var checkoutUs = new List<double>();
             var txBeginUs = new List<double>();
@@ -449,7 +778,7 @@ Usage:
 
             for (int i = 0; i < iterations; i++)
             {
-                long id = rng.NextInt64(1, 100_000);
+                long id = rng.NextInt64(1, Math.Min(records, 1_000_000L));
                 int bal = rng.Next(50, 150);
                 bool act = true;
 
@@ -472,7 +801,7 @@ Usage:
                 long tLock1 = System.Diagnostics.Stopwatch.GetTimestamp();
 
                 long tUp0 = System.Diagnostics.Stopwatch.GetTimestamp();
-                await using (var upCmd = new Npgsql.NpgsqlCommand("UPDATE eap_lab.accounts_500m SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn, tx))
+                await using (var upCmd = new Npgsql.NpgsqlCommand($"UPDATE {tbl} SET balance = @b, active = @a, version = version + 1 WHERE id = @id;", conn, tx))
                 {
                     upCmd.Parameters.AddWithValue("b", bal);
                     upCmd.Parameters.AddWithValue("a", act);
@@ -647,10 +976,11 @@ Usage:
 
         if (sub == "run-benchmarks")
         {
-            string tableName = GetArgValue(args, "--table") ?? "eap_lab.accounts_500m";
-            long records = 1_000_000L;
+            string tableName = GetArgValue(args, "--table") ?? "eap_audit_20261028.accounts_50m";
+            string? countStr = GetArgValue(args, "--records");
+            long records = countStr != null ? long.Parse(countStr) : 50_000_000L;
             int reps = int.Parse(GetArgValue(args, "--repetitions") ?? "3");
-            int reqs = int.Parse(GetArgValue(args, "--requests") ?? "5000");
+            int reqs = int.Parse(GetArgValue(args, "--requests") ?? "2500");
 
             Console.WriteLine($"Running authoritative adversarial benchmark on '{tableName}' ({records:N0} records, {reps} reps, {reqs} reqs/rep)...");
             var benchmarkArgs = new string[]

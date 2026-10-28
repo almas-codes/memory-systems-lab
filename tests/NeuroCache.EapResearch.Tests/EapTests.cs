@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Npgsql;
 using NeuroCache.EapResearch;
 using Xunit;
 
@@ -664,6 +665,322 @@ public class EapCoreTests
 
         Assert.False(coord.IsHealthy);
         Assert.Throws<InvalidOperationException>(() => coord.QueryEligible(1));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_MutationsAcrossAllPhases_CorrectlyReflectedInPlane()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_phases_accounts";
+        string testOutbox = "eap_audit_20261028.test_phases_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) 
+                SELECT s, 50, true FROM generate_series(1, 10) s;
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Phase 1 mutation: immediately BEFORE hydration starts
+        await using (var mutConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await mutConn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                UPDATE {testTable} SET balance = 150 WHERE id = 1;
+                INSERT INTO {testOutbox} (account_id, balance, active) VALUES (1, 150, true);
+            ", mutConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+
+        var phase2Executed = false;
+        var phase3Executed = false;
+
+        // Perform synchronized hydration with phase callbacks
+        await coord.HydrateSynchronizedFromPostgreSqlAsync(
+            onSnapshotAcquired: async (watermark) =>
+            {
+                // Phase 2: Mutation immediately after snapshot isolation watermark is acquired
+                await using var conn2 = new Npgsql.NpgsqlConnection(connStr);
+                await conn2.OpenAsync();
+                await using var cmd2 = new Npgsql.NpgsqlCommand($@"
+                    UPDATE {testTable} SET balance = 150 WHERE id = 2;
+                    INSERT INTO {testOutbox} (account_id, balance, active) VALUES (2, 150, true);
+                ", conn2);
+                await cmd2.ExecuteNonQueryAsync();
+                phase2Executed = true;
+            },
+            onRowProcessed: async (processedCount) =>
+            {
+                // Phase 3: Mutation during table streaming (at row 5)
+                if (processedCount == 5 && !phase3Executed)
+                {
+                    await using var conn3 = new Npgsql.NpgsqlConnection(connStr);
+                    await conn3.OpenAsync();
+                    await using var cmd3 = new Npgsql.NpgsqlCommand($@"
+                        UPDATE {testTable} SET balance = 150 WHERE id = 3;
+                        INSERT INTO {testOutbox} (account_id, balance, active) VALUES (3, 150, true);
+                    ", conn3);
+                    await cmd3.ExecuteNonQueryAsync();
+                    phase3Executed = true;
+                }
+            });
+
+        Assert.True(phase2Executed);
+        Assert.True(phase3Executed);
+        Assert.True(coord.IsHealthy);
+
+        // Phase 4: Mutation after hydration completes and coordinator is healthy
+        bool phase4Ok = await coord.UpdateAccountAsync(4, 150, true);
+        Assert.True(phase4Ok);
+
+        // Verify: IDs 1, 2, 3, 4 must ALL be eligible (balance = 150 >= 100)
+        Assert.True(coord.QueryEligible(1), "Phase 1 mutation (pre-hydration) missed!");
+        Assert.True(coord.QueryEligible(2), "Phase 2 mutation (post-snapshot watermark) missed!");
+        Assert.True(coord.QueryEligible(3), "Phase 3 mutation (mid-stream) missed!");
+        Assert.True(coord.QueryEligible(4), "Phase 4 mutation (post-hydration) missed!");
+
+        // Unmodified accounts (5..10) must remain ineligible
+        for (long id = 5; id <= 10; id++)
+        {
+            Assert.False(coord.QueryEligible(id), $"Account {id} should be ineligible.");
+        }
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_WriterHoldingLockDuringSnapshot_WaitsThenCatchesUp()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_lock_accounts";
+        string testOutbox = "eap_audit_20261028.test_lock_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) VALUES (5, 50, true);
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+
+        var writerStarted = new TaskCompletionSource();
+        var snapshotStarted = new TaskCompletionSource();
+
+        // Writer task holds a transaction open on account 5
+        var writerTask = Task.Run(async () =>
+        {
+            await using var writerConn = new Npgsql.NpgsqlConnection(connStr);
+            await writerConn.OpenAsync();
+            await using var tx = await writerConn.BeginTransactionAsync();
+
+            await using var updateCmd = new NpgsqlCommand($@"
+                UPDATE {testTable} SET balance = 180 WHERE id = 5;
+                INSERT INTO {testOutbox} (account_id, balance, active) VALUES (5, 180, true);
+            ", writerConn, tx);
+            await updateCmd.ExecuteNonQueryAsync();
+
+            writerStarted.SetResult();
+            await snapshotStarted.Task; // Hold until hydration begins snapshot acquisition
+
+            await tx.CommitAsync();
+        });
+
+        await writerStarted.Task;
+
+        // Start hydration
+        await coord.HydrateSynchronizedFromPostgreSqlAsync(
+            onSnapshotAcquired: async (watermark) =>
+            {
+                // Release writer transaction commit
+                snapshotStarted.TrySetResult();
+                await writerTask;
+            });
+
+        Assert.True(coord.IsHealthy);
+        Assert.True(coord.QueryEligible(5), "Account 5 should reflect committed balance 180.");
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Outbox_TransactionRollback_DoesNotLeaveStaleStateOrCorruptPlanes()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_rb_accounts";
+        string testOutbox = "eap_audit_20261028.test_rb_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) VALUES (7, 50, true);
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+        await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        Assert.False(coord.QueryEligible(7));
+
+        // An uncommitted or rolled-back transaction
+        await using (var txConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await txConn.OpenAsync();
+            await using var tx = await txConn.BeginTransactionAsync();
+            await using var cmd = new NpgsqlCommand($@"
+                UPDATE {testTable} SET balance = 199 WHERE id = 7;
+                INSERT INTO {testOutbox} (account_id, balance, active) VALUES (7, 199, true);
+            ", txConn, tx);
+            await cmd.ExecuteNonQueryAsync();
+
+            // Explicit rollback
+            await tx.RollbackAsync();
+        }
+
+        // Reconcile pending mutations: must find 0 committed rows
+        int replayed = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(0, replayed);
+
+        // Account 7 must remain ineligible
+        Assert.False(coord.QueryEligible(7), "Rolled back transaction corrupted the in-memory plane!");
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Outbox_RapidSameAccountUpdates_ReplaysInStrictSequenceOrder()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_rapid_accounts";
+        string testOutbox = "eap_audit_20261028.test_rapid_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) VALUES (8, 50, true);
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+        await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        // Perform 4 rapid mutations in sequence on Account 8:
+        // 1. balance 150 (eligible)
+        // 2. balance 40 (ineligible)
+        // 3. balance 190 (eligible)
+        // 4. balance 25 (ineligible)
+        int[] balances = { 150, 40, 190, 25 };
+        await using (var conn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await conn.OpenAsync();
+            foreach (var b in balances)
+            {
+                await using var cmd = new NpgsqlCommand($@"
+                    UPDATE {testTable} SET balance = @b WHERE id = 8;
+                    INSERT INTO {testOutbox} (account_id, balance, active) VALUES (8, @b, true);
+                ", conn);
+                cmd.Parameters.AddWithValue("b", b);
+                await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        int replayed = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(4, replayed);
+
+        // Final balance was 25 -> ineligible!
+        Assert.False(coord.QueryEligible(8), "Outbox replay did not apply mutations in strict ascending seq_id order!");
+        Assert.False(coord.QueryThreshold(8, 50));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ExternalMutation_RowLevelTrigger_CapturesDirectSqlWrites()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_trg_accounts";
+        string testOutbox = "eap_audit_20261028.test_trg_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable} CASCADE;
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) VALUES (9, 30, true);
+
+                CREATE OR REPLACE FUNCTION eap_audit_20261028.fn_accounts_audit_trigger()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    INSERT INTO {testOutbox} (account_id, balance, active)
+                    VALUES (NEW.id, NEW.balance, NEW.active);
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                DROP TRIGGER IF EXISTS trg_test_accounts_mutation ON {testTable};
+                CREATE TRIGGER trg_test_accounts_mutation
+                AFTER INSERT OR UPDATE ON {testTable}
+                FOR EACH ROW EXECUTE FUNCTION eap_audit_20261028.fn_accounts_audit_trigger();
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+        await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        Assert.False(coord.QueryEligible(9));
+
+        // External update simulating an external microservice or direct psql
+        await using (var extConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await extConn.OpenAsync();
+            await using var extCmd = new NpgsqlCommand($"UPDATE {testTable} SET balance = 165 WHERE id = 9;", extConn);
+            await extCmd.ExecuteNonQueryAsync();
+        }
+
+        // Outbox should have captured this row via trigger
+        int replayed = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(1, replayed);
+
+        // In-memory plane must reflect the external mutation
+        Assert.True(coord.QueryEligible(9), "Trigger-captured external mutation was not reflected in EAP memory!");
 
         await coord.DisposeAsync();
     }
