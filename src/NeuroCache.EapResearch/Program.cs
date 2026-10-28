@@ -59,6 +59,12 @@ public class Program
                     await decisionRunner.RunAllAsync();
                     return 0;
 
+                case "publication-gate":
+                case "final-gate":
+                    var gateRunner = new FinalPublicationGateRunner();
+                    await gateRunner.RunAllAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();

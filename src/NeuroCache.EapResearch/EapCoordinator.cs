@@ -24,6 +24,25 @@ public sealed class EapCoordinator : IAsyncDisposable
     public EapBooleanBitmap Bitmap => _bitmap;
     public EapPackedCategoryPlane CategoryPlane => _categoryPlane;
 
+    // Deterministic test hooks for concurrency and gate verification
+    public Func<long, Task>? OnBeforeAcquireDbLock { get; set; }
+    public Func<long, Task>? OnAfterAcquireDbLock { get; set; }
+    public Func<long, Task>? OnBeforeCommit { get; set; }
+    public Func<long, long, Task>? OnAfterCommit { get; set; }
+    public Func<long, long, Task>? OnBeforePublish { get; set; }
+    public Func<long, long, Task>? OnAfterPublish { get; set; }
+
+    /// <summary>
+    /// When true, enforces monotonic publication ordering per account: an older committed mutation
+    /// that publishes late will NEVER overwrite a newer committed mutation that already published.
+    /// Can be toggled in adversarial tests to prove both the vulnerability and the fix.
+    /// </summary>
+    public bool EnforceMonotonicPublicationOrdering { get; set; } = true;
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<long, long> _accountSequences = new();
+
+    public long GetAccountPublishedSequence(long id) => _accountSequences.TryGetValue(id, out long seq) ? seq : 0;
+
     public void MarkHealthy(bool healthy = true) => IsHealthy = healthy;
 
     public EapCoordinator(
@@ -96,24 +115,53 @@ public sealed class EapCoordinator : IAsyncDisposable
     /// Publishes an in-memory update across both the Boolean plane and Category plane under Seqlock.
     /// Serialized per-shard via _shardWriterLocks to prevent concurrent writers from corrupting
     /// the sequence counter and exposing torn states to readers.
+    /// When EnforceMonotonicPublicationOrdering is enabled, an older mutation sequence number
+    /// is rejected and dropped if a newer mutation sequence has already been published for this account.
     /// </summary>
-    public void PublishCrossPlane(long id, int balance, bool active)
+    public bool PublishCrossPlane(long id, int balance, bool active, long seqId = 0)
     {
         int shard = GetShard(id);
         lock (_shardWriterLocks[shard])
         {
+            if (EnforceMonotonicPublicationOrdering && seqId > 0)
+            {
+                if (_accountSequences.TryGetValue(id, out long currentSeq) && seqId < currentSeq)
+                {
+                    // Superseded mutation: a newer mutation was already published for this account.
+                    // Dropping obsolete write to prevent silent memory corruption.
+                    return false;
+                }
+            }
+
             Interlocked.Increment(ref _shardVersions[shard]); // Turn odd (write in progress)
             try
             {
                 bool eligible = (balance >= _defaultThreshold) && active;
                 _bitmap.SetEligible(id, eligible);
                 _categoryPlane.SetAccount(id, balance, active);
+
+                if (seqId > 0)
+                {
+                    _accountSequences[id] = seqId;
+                }
             }
             finally
             {
                 Interlocked.Increment(ref _shardVersions[shard]); // Turn even (published)
             }
         }
+
+        if (seqId > 0)
+        {
+            long currentLast;
+            do
+            {
+                currentLast = Volatile.Read(ref _lastAppliedMutationSeq);
+                if (seqId <= currentLast) break;
+            } while (Interlocked.CompareExchange(ref _lastAppliedMutationSeq, seqId, currentLast) != currentLast);
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -167,14 +215,16 @@ public sealed class EapCoordinator : IAsyncDisposable
         var sem = _shardLocks[shard];
 
         await sem.WaitAsync(ct).ConfigureAwait(false);
+        long mutationSeq = 0;
         try
         {
-            long mutationSeq = 0;
-
             await using var conn = new NpgsqlConnection(_connectionString);
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
             await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+            if (OnBeforeAcquireDbLock != null)
+                await OnBeforeAcquireDbLock(id).ConfigureAwait(false);
 
             // Advisory transaction lock: ensures outbox insertions and commits occur in strict monotonic order,
             // preventing the outbox sequence-gap anomaly where concurrent uncommitted transactions are skipped.
@@ -187,6 +237,9 @@ public sealed class EapCoordinator : IAsyncDisposable
             {
                 // Fall back if advisory locks are restricted in the session
             }
+
+            if (OnAfterAcquireDbLock != null)
+                await OnAfterAcquireDbLock(id).ConfigureAwait(false);
 
             // 1. Authoritative write to PostgreSQL table
             string updateSql = $@"
@@ -232,21 +285,228 @@ public sealed class EapCoordinator : IAsyncDisposable
                 // If mutation log table doesn't exist, proceed with transaction
             }
 
+            if (OnBeforeCommit != null)
+                await OnBeforeCommit(id).ConfigureAwait(false);
+
             // Commit transaction authoritatively
             await tx.CommitAsync(ct).ConfigureAwait(false);
 
-            // 3. Publish to in-memory answer planes under Seqlock
-            PublishCrossPlane(id, newBalance, newActive);
-            if (mutationSeq > 0)
-            {
-                Interlocked.Exchange(ref _lastAppliedMutationSeq, mutationSeq);
-            }
+            if (OnAfterCommit != null)
+                await OnAfterCommit(id, mutationSeq).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Release the shard DB lock once the transaction commits authoritatively in PostgreSQL
+            sem.Release();
+        }
+
+        // 3. Publish to in-memory answer planes under Seqlock with monotonic sequence checking
+        try
+        {
+            if (OnBeforePublish != null)
+                await OnBeforePublish(id, mutationSeq).ConfigureAwait(false);
+
+            PublishCrossPlane(id, newBalance, newActive, mutationSeq);
+
+            if (OnAfterPublish != null)
+                await OnAfterPublish(id, mutationSeq).ConfigureAwait(false);
 
             return true;
+        }
+        catch
+        {
+            // CRITICAL SAFETY GATE:
+            // Transaction committed to PostgreSQL, but in-memory publication failed or was interrupted!
+            // Fail closed by marking coordinator unhealthy so queries reject rather than serve stale data.
+            IsHealthy = false;
+            throw;
+        }
+    }
+
+    public async Task<bool> InsertAccountAsync(long id, int balance, bool active, CancellationToken ct = default)
+    {
+        if (id <= 0 || (ulong)(id - 1) >= (ulong)_bitmap.MaxId)
+            throw new ArgumentOutOfRangeException(nameof(id), $"Account ID {id} exceeds allocated capacity {_bitmap.MaxId}.");
+
+        int shard = GetShard(id);
+        var sem = _shardLocks[shard];
+
+        await sem.WaitAsync(ct).ConfigureAwait(false);
+        long mutationSeq = 0;
+        try
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+            if (OnBeforeAcquireDbLock != null)
+                await OnBeforeAcquireDbLock(id).ConfigureAwait(false);
+
+            try
+            {
+                await using var advCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext('eap_outbox_lock'));", conn, tx);
+                await advCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch { }
+
+            if (OnAfterAcquireDbLock != null)
+                await OnAfterAcquireDbLock(id).ConfigureAwait(false);
+
+            string insertSql = $@"
+                INSERT INTO {_tableName} (id, balance, active, version) 
+                VALUES (@id, @b, @a, 1)
+                ON CONFLICT (id) DO UPDATE SET balance = @b, active = @a, version = {_tableName}.version + 1;";
+
+            await using (var cmd = new NpgsqlCommand(insertSql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("id", id);
+                cmd.Parameters.AddWithValue("b", balance);
+                cmd.Parameters.AddWithValue("a", active);
+                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+
+            try
+            {
+                string logSql = $@"
+                    INSERT INTO {_mutationLogTable} (account_id, balance, active) 
+                    VALUES (@id, @b, @a) 
+                    RETURNING seq_id;";
+
+                await using var logCmd = new NpgsqlCommand(logSql, conn, tx);
+                logCmd.Parameters.AddWithValue("id", id);
+                logCmd.Parameters.AddWithValue("b", balance);
+                logCmd.Parameters.AddWithValue("a", active);
+
+                object? seqVal = await logCmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+                if (seqVal != null && seqVal != DBNull.Value)
+                {
+                    mutationSeq = Convert.ToInt64(seqVal);
+                }
+            }
+            catch { }
+
+            if (OnBeforeCommit != null)
+                await OnBeforeCommit(id).ConfigureAwait(false);
+
+            await tx.CommitAsync(ct).ConfigureAwait(false);
+
+            if (OnAfterCommit != null)
+                await OnAfterCommit(id, mutationSeq).ConfigureAwait(false);
         }
         finally
         {
             sem.Release();
+        }
+
+        try
+        {
+            if (OnBeforePublish != null)
+                await OnBeforePublish(id, mutationSeq).ConfigureAwait(false);
+
+            PublishCrossPlane(id, balance, active, mutationSeq);
+
+            if (OnAfterPublish != null)
+                await OnAfterPublish(id, mutationSeq).ConfigureAwait(false);
+
+            return true;
+        }
+        catch
+        {
+            IsHealthy = false;
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteAccountAsync(long id, CancellationToken ct = default)
+    {
+        if (id <= 0 || (ulong)(id - 1) >= (ulong)_bitmap.MaxId)
+            throw new ArgumentOutOfRangeException(nameof(id), $"Account ID {id} exceeds allocated capacity {_bitmap.MaxId}.");
+
+        int shard = GetShard(id);
+        var sem = _shardLocks[shard];
+
+        await sem.WaitAsync(ct).ConfigureAwait(false);
+        long mutationSeq = 0;
+        try
+        {
+            await using var conn = new NpgsqlConnection(_connectionString);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
+
+            if (OnBeforeAcquireDbLock != null)
+                await OnBeforeAcquireDbLock(id).ConfigureAwait(false);
+
+            try
+            {
+                await using var advCmd = new NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext('eap_outbox_lock'));", conn, tx);
+                await advCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch { }
+
+            if (OnAfterAcquireDbLock != null)
+                await OnAfterAcquireDbLock(id).ConfigureAwait(false);
+
+            string deleteSql = $"DELETE FROM {_tableName} WHERE id = @id;";
+            await using (var cmd = new NpgsqlCommand(deleteSql, conn, tx))
+            {
+                cmd.Parameters.AddWithValue("id", id);
+                int rows = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                if (rows == 0)
+                {
+                    await tx.RollbackAsync(ct).ConfigureAwait(false);
+                    return false;
+                }
+            }
+
+            try
+            {
+                string logSql = $@"
+                    INSERT INTO {_mutationLogTable} (account_id, balance, active) 
+                    VALUES (@id, 0, false) 
+                    RETURNING seq_id;";
+
+                await using var logCmd = new NpgsqlCommand(logSql, conn, tx);
+                logCmd.Parameters.AddWithValue("id", id);
+
+                object? seqVal = await logCmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+                if (seqVal != null && seqVal != DBNull.Value)
+                {
+                    mutationSeq = Convert.ToInt64(seqVal);
+                }
+            }
+            catch { }
+
+            if (OnBeforeCommit != null)
+                await OnBeforeCommit(id).ConfigureAwait(false);
+
+            await tx.CommitAsync(ct).ConfigureAwait(false);
+
+            if (OnAfterCommit != null)
+                await OnAfterCommit(id, mutationSeq).ConfigureAwait(false);
+        }
+        finally
+        {
+            sem.Release();
+        }
+
+        try
+        {
+            if (OnBeforePublish != null)
+                await OnBeforePublish(id, mutationSeq).ConfigureAwait(false);
+
+            PublishCrossPlane(id, 0, false, mutationSeq);
+
+            if (OnAfterPublish != null)
+                await OnAfterPublish(id, mutationSeq).ConfigureAwait(false);
+
+            return true;
+        }
+        catch
+        {
+            IsHealthy = false;
+            throw;
         }
     }
 
@@ -279,22 +539,7 @@ public sealed class EapCoordinator : IAsyncDisposable
                 int balance = reader.GetInt32(2);
                 bool active = reader.GetBoolean(3);
 
-                int shard = GetShard(accountId);
-                lock (_shardWriterLocks[shard])
-                {
-                    Interlocked.Increment(ref _shardVersions[shard]);
-                    try
-                    {
-                        bool eligible = (balance >= _defaultThreshold) && active;
-                        _bitmap.SetEligible(accountId, eligible);
-                        _categoryPlane.SetAccount(accountId, balance, active);
-                        Interlocked.Exchange(ref _lastAppliedMutationSeq, seq);
-                    }
-                    finally
-                    {
-                        Interlocked.Increment(ref _shardVersions[shard]);
-                    }
-                }
+                PublishCrossPlane(accountId, balance, active, seq);
                 replayed++;
             }
 
@@ -389,6 +634,7 @@ public sealed class EapCoordinator : IAsyncDisposable
 
             // Record initial watermark
             Interlocked.Exchange(ref _lastAppliedMutationSeq, snapshotWatermark);
+            _accountSequences.Clear();
 
             // 3. Catch up any mutations committed after the snapshot transaction began
             int replayed = await ReconcilePendingMutationsAsync(ct).ConfigureAwait(false);

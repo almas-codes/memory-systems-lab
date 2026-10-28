@@ -1,0 +1,382 @@
+[
+  {
+    "PathName": "RawBitmap",
+    "ConcurrencyWorkers": 1,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 40671153.173496254,
+    "PerWorkerThroughputOpsSec": 40671153.173496254,
+    "AggregateInterArrivalNs": 24.587451349957284,
+    "PerWorkerServiceTimeNs": 24.587451349957284,
+    "EmpiricalLatencyUs": {
+      "p50": 0.018,
+      "p95": 0.038599999999999995,
+      "p99": 0.05343333333333333,
+      "p99_9": 0.15059999999999998,
+      "max_tail": 10.4488
+    },
+    "CpuUtilizationPercent": 6.337507827931628,
+    "TotalOperationsMeasured": 488210000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "RawBitmap",
+    "ConcurrencyWorkers": 2,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 76437041.67158005,
+    "PerWorkerThroughputOpsSec": 38218520.83579002,
+    "AggregateInterArrivalNs": 13.082662255514903,
+    "PerWorkerServiceTimeNs": 26.165324511029805,
+    "EmpiricalLatencyUs": {
+      "p50": 0.017983333333333334,
+      "p95": 0.041916666666666665,
+      "p99": 0.057466666666666666,
+      "p99_9": 0.14908333333333335,
+      "max_tail": 17.342883333333333
+    },
+    "CpuUtilizationPercent": 12.2133582615896,
+    "TotalOperationsMeasured": 917380000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "RawBitmap",
+    "ConcurrencyWorkers": 4,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 144231087.7259244,
+    "PerWorkerThroughputOpsSec": 36057771.9314811,
+    "AggregateInterArrivalNs": 6.933318022951149,
+    "PerWorkerServiceTimeNs": 27.733272091804597,
+    "EmpiricalLatencyUs": {
+      "p50": 0.0182,
+      "p95": 0.042133333333333335,
+      "p99": 0.056108333333333336,
+      "p99_9": 0.14186666666666667,
+      "max_tail": 7.794366666666666
+    },
+    "CpuUtilizationPercent": 24.555836393282817,
+    "TotalOperationsMeasured": 1731107000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "RawBitmap",
+    "ConcurrencyWorkers": 8,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 258863776.70516953,
+    "PerWorkerThroughputOpsSec": 32357972.08814619,
+    "AggregateInterArrivalNs": 3.863035658090319,
+    "PerWorkerServiceTimeNs": 30.904285264722553,
+    "EmpiricalLatencyUs": {
+      "p50": 0.03202083333333333,
+      "p95": 0.04246666666666667,
+      "p99": 0.05670833333333333,
+      "p99_9": 0.13526249999999998,
+      "max_tail": 10.889229166666667
+    },
+    "CpuUtilizationPercent": 49.16691575752858,
+    "TotalOperationsMeasured": 3107071000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "RawBitmap",
+    "ConcurrencyWorkers": 16,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 303903868.632009,
+    "PerWorkerThroughputOpsSec": 18993991.789500564,
+    "AggregateInterArrivalNs": 3.2905142158979213,
+    "PerWorkerServiceTimeNs": 52.64822745436674,
+    "EmpiricalLatencyUs": {
+      "p50": 0.04182916666666666,
+      "p95": 0.04641875,
+      "p99": 0.12203333333333334,
+      "p99_9": 2.9217750000000002,
+      "max_tail": 32.668170833333335
+    },
+    "CpuUtilizationPercent": 80.11644334772211,
+    "TotalOperationsMeasured": 3649180000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "ConcurrencyWorkers": 1,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 20135717.128360122,
+    "PerWorkerThroughputOpsSec": 20135717.128360122,
+    "AggregateInterArrivalNs": 49.66299405306759,
+    "PerWorkerServiceTimeNs": 49.66299405306759,
+    "EmpiricalLatencyUs": {
+      "p50": 0.0383,
+      "p95": 0.0721,
+      "p99": 0.1095,
+      "p99_9": 0.2546333333333333,
+      "max_tail": 13.858433333333332
+    },
+    "CpuUtilizationPercent": 5.9892468266600005,
+    "TotalOperationsMeasured": 241642000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "ConcurrencyWorkers": 2,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 39467347.69047001,
+    "PerWorkerThroughputOpsSec": 19733673.845235005,
+    "AggregateInterArrivalNs": 25.33740062399646,
+    "PerWorkerServiceTimeNs": 50.67480124799292,
+    "EmpiricalLatencyUs": {
+      "p50": 0.03819999999999999,
+      "p95": 0.07275,
+      "p99": 0.10660000000000001,
+      "p99_9": 0.23693333333333333,
+      "max_tail": 20.6736
+    },
+    "CpuUtilizationPercent": 12.212159173914308,
+    "TotalOperationsMeasured": 473725000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "ConcurrencyWorkers": 4,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 76833902.36070001,
+    "PerWorkerThroughputOpsSec": 19208475.590175003,
+    "AggregateInterArrivalNs": 13.015087992087889,
+    "PerWorkerServiceTimeNs": 52.060351968351554,
+    "EmpiricalLatencyUs": {
+      "p50": 0.041041666666666664,
+      "p95": 0.07269166666666667,
+      "p99": 0.1035,
+      "p99_9": 0.228675,
+      "max_tail": 9.575991666666667
+    },
+    "CpuUtilizationPercent": 24.586862841430797,
+    "TotalOperationsMeasured": 922240000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "ConcurrencyWorkers": 8,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 145550488.07405886,
+    "PerWorkerThroughputOpsSec": 18193811.009257358,
+    "AggregateInterArrivalNs": 6.870468201323935,
+    "PerWorkerServiceTimeNs": 54.96374561059148,
+    "EmpiricalLatencyUs": {
+      "p50": 0.061875000000000006,
+      "p95": 0.06912083333333333,
+      "p99": 0.09626249999999999,
+      "p99_9": 0.2040125,
+      "max_tail": 5.7304375
+    },
+    "CpuUtilizationPercent": 49.35615431494384,
+    "TotalOperationsMeasured": 1746927000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "ConcurrencyWorkers": 16,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 193655306.20460787,
+    "PerWorkerThroughputOpsSec": 12103456.637787992,
+    "AggregateInterArrivalNs": 5.163814096286331,
+    "PerWorkerServiceTimeNs": 82.6210255405813,
+    "EmpiricalLatencyUs": {
+      "p50": 0.06524166666666666,
+      "p95": 0.07970416666666667,
+      "p99": 0.23158958333333335,
+      "p99_9": 5.355800000000001,
+      "max_tail": 27.885177083333332
+    },
+    "CpuUtilizationPercent": 80.85829848141572,
+    "TotalOperationsMeasured": 2325298000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "ConcurrencyWorkers": 1,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 7962740.46362453,
+    "PerWorkerThroughputOpsSec": 7962740.46362453,
+    "AggregateInterArrivalNs": 125.58490441427922,
+    "PerWorkerServiceTimeNs": 125.58490441427922,
+    "EmpiricalLatencyUs": {
+      "p50": 0.10540000000000001,
+      "p95": 0.17356666666666667,
+      "p99": 0.23053333333333334,
+      "p99_9": 0.5517666666666666,
+      "max_tail": 4.786266666666667
+    },
+    "CpuUtilizationPercent": 6.198611313597915,
+    "TotalOperationsMeasured": 95592000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "ConcurrencyWorkers": 2,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 15747837.401396057,
+    "PerWorkerThroughputOpsSec": 7873918.700698028,
+    "AggregateInterArrivalNs": 63.50078264786689,
+    "PerWorkerServiceTimeNs": 127.00156529573378,
+    "EmpiricalLatencyUs": {
+      "p50": 0.11416666666666668,
+      "p95": 0.1727,
+      "p99": 0.22666666666666668,
+      "p99_9": 0.47734999999999994,
+      "max_tail": 3.1930499999999995
+    },
+    "CpuUtilizationPercent": 12.294610817042667,
+    "TotalOperationsMeasured": 189004000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "ConcurrencyWorkers": 4,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 30928498.164307356,
+    "PerWorkerThroughputOpsSec": 7732124.541076839,
+    "AggregateInterArrivalNs": 32.3326401006447,
+    "PerWorkerServiceTimeNs": 129.3305604025788,
+    "EmpiricalLatencyUs": {
+      "p50": 0.133625,
+      "p95": 0.16784999999999997,
+      "p99": 0.2203166666666667,
+      "p99_9": 0.45760833333333334,
+      "max_tail": 12.884991666666666
+    },
+    "CpuUtilizationPercent": 24.450610669355104,
+    "TotalOperationsMeasured": 371205000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "ConcurrencyWorkers": 8,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 59683798.468158126,
+    "PerWorkerThroughputOpsSec": 7460474.808519766,
+    "AggregateInterArrivalNs": 16.754965764008965,
+    "PerWorkerServiceTimeNs": 134.03972611207172,
+    "EmpiricalLatencyUs": {
+      "p50": 0.14339583333333333,
+      "p95": 0.16427083333333334,
+      "p99": 0.21897916666666664,
+      "p99_9": 0.5028041666666667,
+      "max_tail": 5.891104166666666
+    },
+    "CpuUtilizationPercent": 48.841259789920166,
+    "TotalOperationsMeasured": 716490000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "ConcurrencyWorkers": 16,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 88840484.57281987,
+    "PerWorkerThroughputOpsSec": 5552530.285801242,
+    "AggregateInterArrivalNs": 11.256129509067796,
+    "PerWorkerServiceTimeNs": 180.09807214508473,
+    "EmpiricalLatencyUs": {
+      "p50": 0.13525208333333336,
+      "p95": 0.17499791666666664,
+      "p99": 0.5097166666666667,
+      "p99_9": 4.5509125,
+      "max_tail": 20.692906250000004
+    },
+    "CpuUtilizationPercent": 81.98026328004927,
+    "TotalOperationsMeasured": 1066645000,
+    "MeasurementMethod": "Batch-isolated stopwatch timing (1,000 queries per sample) to prevent clock overhead artifacts"
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "ConcurrencyWorkers": 1,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 1538.1325186115398,
+    "PerWorkerThroughputOpsSec": 1538.1325186115398,
+    "AggregateInterArrivalNs": 650139.0406222554,
+    "PerWorkerServiceTimeNs": 650139.0406222554,
+    "EmpiricalLatencyUs": {
+      "p50": 625.3000000000001,
+      "p95": 829.2666666666668,
+      "p99": 1212.4666666666667,
+      "p99_9": 6133.166666666667,
+      "max_tail": 15915.099999999999
+    },
+    "CpuUtilizationPercent": 6.23364854777932,
+    "TotalOperationsMeasured": 6000,
+    "MeasurementMethod": "Individual query stopwatch timing per worker"
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "ConcurrencyWorkers": 2,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 3568.0613417395416,
+    "PerWorkerThroughputOpsSec": 1784.0306708697708,
+    "AggregateInterArrivalNs": 280264.2399394593,
+    "PerWorkerServiceTimeNs": 560528.4798789186,
+    "EmpiricalLatencyUs": {
+      "p50": 542.25,
+      "p95": 683.1666666666666,
+      "p99": 885.6999999999999,
+      "p99_9": 1897.5833333333333,
+      "max_tail": 2216.6333333333337
+    },
+    "CpuUtilizationPercent": 7.48421344527777,
+    "TotalOperationsMeasured": 12000,
+    "MeasurementMethod": "Individual query stopwatch timing per worker"
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "ConcurrencyWorkers": 4,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 7111.9864895218625,
+    "PerWorkerThroughputOpsSec": 1777.9966223804656,
+    "AggregateInterArrivalNs": 140607.69118069988,
+    "PerWorkerServiceTimeNs": 562430.7647227995,
+    "EmpiricalLatencyUs": {
+      "p50": 523.1916666666667,
+      "p95": 651.475,
+      "p99": 1022.5833333333334,
+      "p99_9": 2758.775,
+      "max_tail": 18838.45
+    },
+    "CpuUtilizationPercent": 12.298195052645838,
+    "TotalOperationsMeasured": 24000,
+    "MeasurementMethod": "Individual query stopwatch timing per worker"
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "ConcurrencyWorkers": 8,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 13226.502737685822,
+    "PerWorkerThroughputOpsSec": 1653.3128422107277,
+    "AggregateInterArrivalNs": 75605.77575436735,
+    "PerWorkerServiceTimeNs": 604846.2060349388,
+    "EmpiricalLatencyUs": {
+      "p50": 536.1125000000001,
+      "p95": 715.0791666666668,
+      "p99": 1342.2124999999999,
+      "p99_9": 3118.933333333334,
+      "max_tail": 27509.558333333334
+    },
+    "CpuUtilizationPercent": 19.56902822770368,
+    "TotalOperationsMeasured": 48000,
+    "MeasurementMethod": "Individual query stopwatch timing per worker"
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "ConcurrencyWorkers": 16,
+    "Repetitions": 3,
+    "AggregateThroughputOpsSec": 18713.628418982134,
+    "PerWorkerThroughputOpsSec": 1169.6017761863834,
+    "AggregateInterArrivalNs": 53436.99135255095,
+    "PerWorkerServiceTimeNs": 854991.8616408152,
+    "EmpiricalLatencyUs": {
+      "p50": 732.0812500000001,
+      "p95": 1382.1645833333334,
+      "p99": 2531.9500000000003,
+      "p99_9": 5132.972916666666,
+      "max_tail": 36947.81875
+    },
+    "CpuUtilizationPercent": 19.4118564501064,
+    "TotalOperationsMeasured": 96000,
+    "MeasurementMethod": "Individual query stopwatch timing per worker"
+  }
+]

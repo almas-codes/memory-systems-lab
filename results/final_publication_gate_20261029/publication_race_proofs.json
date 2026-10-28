@@ -1,0 +1,26 @@
+{
+  "Experiment": "Write-Publication Race Verification",
+  "UnprotectedBehavior": {
+    "Description": "Writer A commits seq 1 (ineligible), pauses before publication. Writer B commits seq 2 (eligible) and publishes. Writer A resumes and publishes.",
+    "EnforceMonotonicOrdering": false,
+    "DatabaseGroundTruthEligible": true,
+    "PublishedBitmapEligible": false,
+    "PublicQueryEligible": false,
+    "StaleOverwriteConfirmed": true,
+    "Finding": "Without monotonic sequence validation, an earlier transaction that commits first but publishes late permanently overwrites newer memory state with stale data."
+  },
+  "PatchedBehavior": {
+    "Description": "Writer A commits seq 3, pauses. Writer B commits seq 4 and publishes. Writer A resumes and attempts publication at seq 3.",
+    "EnforceMonotonicOrdering": true,
+    "DatabaseGroundTruthEligible": true,
+    "PublishedBitmapEligible": true,
+    "PublishedCategoryEligible": true,
+    "PublicQueryEligible": true,
+    "MonotonicOrderingResolutionConfirmed": true,
+    "Mechanism": "PublishCrossPlane rejects seq 3 because seq 4 is already published for Account 1. Older event is safely dropped with zero lock contention."
+  },
+  "CrashRecoveryFailClosed": {
+    "Policy": "If an exception occurs after PostgreSQL commit but before publication completes, the coordinator marks IsHealthy = false.",
+    "SafetyGuarantee": "All subsequent queries fail closed with InvalidOperationException until ReconcilePendingMutationsAsync catches up and restores health."
+  }
+}
