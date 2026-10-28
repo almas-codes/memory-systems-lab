@@ -327,11 +327,12 @@ Usage:
     private static void PrintSummaryTable(List<EapBenchmarkResult> results)
     {
         Console.WriteLine();
-        Console.WriteLine("| Candidate | Workload | Throughput (ops/s) | p50 (us) | p95 (us) | p99 (us) | Alloc/Op (B) | Resident RAM |");
-        Console.WriteLine("|---|---|---|---|---|---|---|---|");
+        Console.WriteLine("| Candidate | Workload | Throughput (ops/s) | Comb p50 (us) | Read p50 (us) | Write p50 (us) | p95 (us) | p99 (us) | Reads / Writes | Resident RAM |");
+        Console.WriteLine("|---|---|---|---|---|---|---|---|---|---|");
         foreach (var r in results)
         {
-            Console.WriteLine($"| {r.CandidateName,-22} | {r.WorkloadName,-20} | {r.ThroughputOpsPerSec,14:N0} | {r.P50LatencyUs,8:F1} | {r.P95LatencyUs,8:F1} | {r.P99LatencyUs,8:F1} | {r.AllocBytesPerOp,10:F1} | {r.ResidentBytes / (1024 * 1024.0),8:F1} MB |");
+            string rw = $"{r.CompletedReads:N0}R/{r.CompletedWrites:N0}W";
+            Console.WriteLine($"| {r.CandidateName,-22} | {r.WorkloadName,-20} | {r.ThroughputOpsPerSec,14:N0} | {r.P50LatencyUs,8:F1} | {r.ReadP50LatencyUs,8:F1} | {r.WriteP50LatencyUs,8:F1} | {r.P95LatencyUs,8:F1} | {r.P99LatencyUs,8:F1} | {rw,12} | {r.ResidentBytes / (1024 * 1024.0),8:F1} MB |");
         }
         Console.WriteLine();
     }
@@ -434,11 +435,13 @@ Usage:
             var coord = new EapCoordinator(1_000_000, connStr);
 
             var checkoutUs = new List<double>();
+            var txBeginUs = new List<double>();
             var advLockUs = new List<double>();
             var updateUs = new List<double>();
             var outboxUs = new List<double>();
             var commitUs = new List<double>();
             var seqlockUs = new List<double>();
+            var lockHeldUs = new List<double>();
             var totalUs = new List<double>();
 
             int iterations = 500;
@@ -457,7 +460,9 @@ Usage:
                 await conn.OpenAsync();
                 long tCheckout = System.Diagnostics.Stopwatch.GetTimestamp();
 
+                long tTx0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 await using var tx = await conn.BeginTransactionAsync();
+                long tTx1 = System.Diagnostics.Stopwatch.GetTimestamp();
 
                 long tLock0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 await using (var advCmd = new Npgsql.NpgsqlCommand("SELECT pg_advisory_xact_lock(hashtext('eap_outbox_lock'));", conn, tx))
@@ -498,11 +503,13 @@ Usage:
 
                 double freq = System.Diagnostics.Stopwatch.Frequency / 1_000_000.0;
                 checkoutUs.Add((tCheckout - t0) / freq);
+                txBeginUs.Add((tTx1 - tTx0) / freq);
                 advLockUs.Add((tLock1 - tLock0) / freq);
                 updateUs.Add((tUp1 - tUp0) / freq);
                 outboxUs.Add((tOut1 - tOut0) / freq);
                 commitUs.Add((tCom1 - tCom0) / freq);
                 seqlockUs.Add((tSeq1 - tSeq0) / freq);
+                lockHeldUs.Add((tCom1 - tLock1) / freq); // Lock held duration from acquisition to commit
                 totalUs.Add((tTotal1 - tTotal0) / freq);
             }
 
@@ -511,13 +518,20 @@ Usage:
             var summary = new
             {
                 ConnCheckout = ComputeStats(checkoutUs),
-                AdvisoryLock = ComputeStats(advLockUs),
+                TxBegin = ComputeStats(txBeginUs),
+                AdvisoryLockAcquisition = ComputeStats(advLockUs),
                 PostgresUpdate = ComputeStats(updateUs),
                 OutboxInsert = ComputeStats(outboxUs),
                 TxCommit = ComputeStats(commitUs),
                 SeqlockPublish = ComputeStats(seqlockUs),
+                LockHeldDuration = ComputeStats(lockHeldUs),
                 TotalWrite = ComputeStats(totalUs)
             };
+
+            double componentSum = summary.ConnCheckout.Mean + summary.TxBegin.Mean + summary.AdvisoryLockAcquisition.Mean + 
+                                  summary.PostgresUpdate.Mean + summary.OutboxInsert.Mean + summary.TxCommit.Mean + 
+                                  summary.SeqlockPublish.Mean;
+            double unmeasuredGap = summary.TotalWrite.Mean - componentSum;
 
             string json = JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(Path.Combine(outDir, "write_breakdown.json"), json);
@@ -525,17 +539,109 @@ Usage:
             Console.WriteLine("==================================================================================");
             Console.WriteLine("                     WRITE LATENCY COMPONENT BREAKDOWN (us)                      ");
             Console.WriteLine("==================================================================================");
-            Console.WriteLine($"{"Component",-20} | {"Mean",8} | {"P50",8} | {"P95",8} | {"P99",8} | {"Max",8} | {"Fraction",8}");
-            Console.WriteLine("---------------------|----------|----------|----------|----------|----------|---------");
+            Console.WriteLine($"{"Component",-24} | {"Mean",8} | {"P50",8} | {"P95",8} | {"P99",8} | {"Max",8} | {"Fraction",8}");
+            Console.WriteLine("-------------------------|----------|----------|----------|----------|----------|---------");
             PrintComponent("Conn Checkout", summary.ConnCheckout, summary.TotalWrite.Mean);
-            PrintComponent("Advisory Lock", summary.AdvisoryLock, summary.TotalWrite.Mean);
+            PrintComponent("Tx Begin", summary.TxBegin, summary.TotalWrite.Mean);
+            PrintComponent("Advisory Lock Acquire", summary.AdvisoryLockAcquisition, summary.TotalWrite.Mean);
             PrintComponent("PG UPDATE", summary.PostgresUpdate, summary.TotalWrite.Mean);
             PrintComponent("Outbox INSERT", summary.OutboxInsert, summary.TotalWrite.Mean);
-            PrintComponent("TX Commit", summary.TxCommit, summary.TotalWrite.Mean);
+            PrintComponent("TX Commit (WAL)", summary.TxCommit, summary.TotalWrite.Mean);
             PrintComponent("Seqlock Publish", summary.SeqlockPublish, summary.TotalWrite.Mean);
-            PrintComponent("TOTAL WRITE", summary.TotalWrite, summary.TotalWrite.Mean);
+            Console.WriteLine($"{"Unmeasured Gap / Glue",-24} | {unmeasuredGap,8:F1} | {"N/A",8} | {"N/A",8} | {"N/A",8} | {"N/A",8} | {unmeasuredGap / summary.TotalWrite.Mean * 100.0,7:F1}%");
+            Console.WriteLine("-------------------------|----------|----------|----------|----------|----------|---------");
+            PrintComponent("TOTAL WALL CLOCK", summary.TotalWrite, summary.TotalWrite.Mean);
+            Console.WriteLine("-------------------------|----------|----------|----------|----------|----------|---------");
+            PrintComponent("LOCK HELD DURATION", summary.LockHeldDuration, summary.TotalWrite.Mean);
             Console.WriteLine("==================================================================================");
+            Console.WriteLine($"Component Sum: {componentSum:F1} us | Total Wall Clock: {summary.TotalWrite.Mean:F1} us | Reconciliation Gap: {unmeasuredGap:F1} us");
+            Console.WriteLine($"Lock is held for {summary.LockHeldDuration.Mean:F1} us (~{summary.LockHeldDuration.Mean / 1000.0:F2} ms) per transaction.");
+            Console.WriteLine($"Max theoretical serial write throughput through global lock: {1_000_000.0 / summary.LockHeldDuration.Mean:F0} writes/sec.");
             Console.WriteLine($"Saved write breakdown telemetry to {Path.Combine(outDir, "write_breakdown.json")}");
+            return 0;
+        }
+
+        if (sub == "verify-category")
+        {
+            Console.WriteLine("Running comprehensive 1,000,000-record category semantics verification against PostgreSQL...");
+            int[] testThresholds = { 0, 1, 12, 13, 26, 50, 100, 124, 125, 129, 130, 194, 195, 196, 208 };
+            long maxId = 1_000_000L;
+
+            var plane = new EapPackedCategoryPlane(maxId);
+            Console.WriteLine("Hydrating category plane from PostgreSQL eap_lab.accounts_500m...");
+            await plane.BuildFromPostgreSqlAsync(connStr, "eap_lab.accounts_500m");
+
+            Console.WriteLine("Streaming ground truth from PostgreSQL and evaluating category plane...");
+            await using var conn = new Npgsql.NpgsqlConnection(connStr);
+            await conn.OpenAsync();
+
+            var resultsList = new List<object>();
+
+            Console.WriteLine();
+            Console.WriteLine("| Threshold | Exact? | Total Records | Definite True | Definite False | Ambiguous | Fallback Req | Fallback % | Discrepancies |");
+            Console.WriteLine("|---|---|---|---|---|---|---|---|---|");
+
+            foreach (int t in testThresholds)
+            {
+                bool isExact = EapPackedCategoryPlane.IsThresholdExact(t);
+                long total = 0;
+                long defTrue = 0;
+                long defFalse = 0;
+                long ambiguous = 0;
+                long discrepancies = 0;
+
+                string query = "SELECT id, balance, active FROM eap_lab.accounts_500m ORDER BY id ASC;";
+                await using var cmd = new Npgsql.NpgsqlCommand(query, conn);
+                cmd.CommandTimeout = 1800;
+                await using var reader = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess);
+
+                while (await reader.ReadAsync())
+                {
+                    long id = reader.GetInt64(0);
+                    int balance = reader.GetInt32(1);
+                    bool active = reader.GetBoolean(2);
+
+                    bool dbGroundTruth = (balance >= t) && active;
+                    var eval = plane.EvaluateThresholdDetailed(id, t);
+
+                    total++;
+                    if (eval == CategoryEvaluationResult.DefiniteTrue)
+                    {
+                        defTrue++;
+                        if (!dbGroundTruth) discrepancies++;
+                    }
+                    else if (eval == CategoryEvaluationResult.DefiniteFalse)
+                    {
+                        defFalse++;
+                        if (dbGroundTruth) discrepancies++;
+                    }
+                    else // AmbiguousBucket
+                    {
+                        ambiguous++;
+                    }
+                }
+
+                double fallbackPct = total > 0 ? (double)ambiguous / total * 100.0 : 0.0;
+                string exactStr = isExact ? "YES" : "NO";
+                Console.WriteLine($"| {t,9} | {exactStr,6} | {total,13:N0} | {defTrue,13:N0} | {defFalse,14:N0} | {ambiguous,9:N0} | {ambiguous,12:N0} | {fallbackPct,9:F2}% | {discrepancies,13} |");
+
+                resultsList.Add(new
+                {
+                    Threshold = t,
+                    IsExact = isExact,
+                    TotalRecords = total,
+                    DefiniteTrue = defTrue,
+                    DefiniteFalse = defFalse,
+                    Ambiguous = ambiguous,
+                    FallbackCount = ambiguous,
+                    FallbackPercentage = fallbackPct,
+                    Discrepancies = discrepancies
+                });
+            }
+
+            string catJson = JsonSerializer.Serialize(resultsList, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(Path.Combine(outDir, "category_semantics_audit.json"), catJson);
+            Console.WriteLine($"\nSaved category semantics audit to {Path.Combine(outDir, "category_semantics_audit.json")}");
             return 0;
         }
 
@@ -544,9 +650,9 @@ Usage:
             string tableName = GetArgValue(args, "--table") ?? "eap_lab.accounts_500m";
             long records = 1_000_000L;
             int reps = int.Parse(GetArgValue(args, "--repetitions") ?? "3");
-            int reqs = int.Parse(GetArgValue(args, "--requests") ?? "2000");
+            int reqs = int.Parse(GetArgValue(args, "--requests") ?? "5000");
 
-            Console.WriteLine($"Running adversarial benchmark on '{tableName}' ({records:N0} records, {reps} reps, {reqs} reqs/rep)...");
+            Console.WriteLine($"Running authoritative adversarial benchmark on '{tableName}' ({records:N0} records, {reps} reps, {reqs} reqs/rep)...");
             var benchmarkArgs = new string[]
             {
                 "benchmark", "run",

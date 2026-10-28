@@ -1,0 +1,167 @@
+[
+  {
+    "Threshold": 0,
+    "IsExact": true,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 900309,
+    "DefiniteFalse": 99691,
+    "Ambiguous": 0,
+    "FallbackCount": 0,
+    "FallbackPercentage": 0,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 1,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 845487,
+    "DefiniteFalse": 99691,
+    "Ambiguous": 54822,
+    "FallbackCount": 54822,
+    "FallbackPercentage": 5.482200000000001,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 12,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 845487,
+    "DefiniteFalse": 99691,
+    "Ambiguous": 54822,
+    "FallbackCount": 54822,
+    "FallbackPercentage": 5.482200000000001,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 13,
+    "IsExact": true,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 845487,
+    "DefiniteFalse": 154513,
+    "Ambiguous": 0,
+    "FallbackCount": 0,
+    "FallbackPercentage": 0,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 26,
+    "IsExact": true,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 785698,
+    "DefiniteFalse": 214302,
+    "Ambiguous": 0,
+    "FallbackCount": 0,
+    "FallbackPercentage": 0,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 50,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 666120,
+    "DefiniteFalse": 274065,
+    "Ambiguous": 59815,
+    "FallbackCount": 59815,
+    "FallbackPercentage": 5.9815,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 100,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 435181,
+    "DefiniteFalse": 508427,
+    "Ambiguous": 56392,
+    "FallbackCount": 56392,
+    "FallbackPercentage": 5.6392,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 124,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 313975,
+    "DefiniteFalse": 626175,
+    "Ambiguous": 59850,
+    "FallbackCount": 59850,
+    "FallbackPercentage": 5.985,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 125,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 313975,
+    "DefiniteFalse": 626175,
+    "Ambiguous": 59850,
+    "FallbackCount": 59850,
+    "FallbackPercentage": 5.985,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 129,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 313975,
+    "DefiniteFalse": 626175,
+    "Ambiguous": 59850,
+    "FallbackCount": 59850,
+    "FallbackPercentage": 5.985,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 130,
+    "IsExact": true,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 313975,
+    "DefiniteFalse": 686025,
+    "Ambiguous": 0,
+    "FallbackCount": 0,
+    "FallbackPercentage": 0,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 194,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 24914,
+    "DefiniteFalse": 920280,
+    "Ambiguous": 54806,
+    "FallbackCount": 54806,
+    "FallbackPercentage": 5.4806,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 195,
+    "IsExact": true,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 24914,
+    "DefiniteFalse": 975086,
+    "Ambiguous": 0,
+    "FallbackCount": 0,
+    "FallbackPercentage": 0,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 196,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 0,
+    "DefiniteFalse": 975086,
+    "Ambiguous": 24914,
+    "FallbackCount": 24914,
+    "FallbackPercentage": 2.4914,
+    "Discrepancies": 0
+  },
+  {
+    "Threshold": 208,
+    "IsExact": false,
+    "TotalRecords": 1000000,
+    "DefiniteTrue": 0,
+    "DefiniteFalse": 975086,
+    "Ambiguous": 24914,
+    "FallbackCount": 24914,
+    "FallbackPercentage": 2.4914,
+    "Discrepancies": 0
+  }
+]

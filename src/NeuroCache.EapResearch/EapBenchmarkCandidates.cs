@@ -274,6 +274,7 @@ public sealed class Candidate5_EapBooleanBitmap : IEapBenchmarkCandidate
         _coord = new EapCoordinator(maxId, connectionString, threshold, tableName);
         // Build bitmap from PostgreSQL
         await _coord.Bitmap.BuildFromPostgreSqlAsync(connectionString, threshold, tableName: tableName, ct: ct);
+        _coord.MarkHealthy(true);
     }
 
     public ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default)
@@ -309,6 +310,7 @@ public sealed class Candidate6_EapPackedCategory : IEapBenchmarkCandidate
         _coord = new EapCoordinator(maxId, connectionString, threshold, tableName);
         // Hydrate category plane from PostgreSQL authoritative database
         await _coord.CategoryPlane.BuildFromPostgreSqlAsync(connectionString, tableName: tableName, ct: ct);
+        _coord.MarkHealthy(true);
     }
 
     public ValueTask<bool> QueryEligibleAsync(long id, int threshold = 100, CancellationToken ct = default)

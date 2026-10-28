@@ -19,10 +19,12 @@ public sealed class EapCoordinator : IAsyncDisposable
     private readonly int _defaultThreshold;
     private long _lastAppliedMutationSeq;
 
-    public bool IsHealthy { get; private set; } = true;
+    public bool IsHealthy { get; private set; } = false;
     public long LastAppliedMutationSeq => Volatile.Read(ref _lastAppliedMutationSeq);
     public EapBooleanBitmap Bitmap => _bitmap;
     public EapPackedCategoryPlane CategoryPlane => _categoryPlane;
+
+    public void MarkHealthy(bool healthy = true) => IsHealthy = healthy;
 
     public EapCoordinator(
         long maxId, 
@@ -345,37 +347,49 @@ public sealed class EapCoordinator : IAsyncDisposable
 
         long processed = 0;
         long maxId = _bitmap.MaxId;
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        try
         {
-            long id = reader.GetInt64(0);
-            int balance = reader.GetInt32(1);
-            bool active = reader.GetBoolean(2);
-
-            if ((ulong)(id - 1) < (ulong)maxId)
+            while (await reader.ReadAsync(ct).ConfigureAwait(false))
             {
+                long id = reader.GetInt64(0);
+                int balance = reader.GetInt32(1);
+                bool active = reader.GetBoolean(2);
+
+                if (id <= 0 || (ulong)(id - 1) >= (ulong)maxId)
+                {
+                    IsHealthy = false;
+                    throw new InvalidOperationException($"Hydration encountered account ID {id} which exceeds allocated capacity {maxId}. A partial plane cannot be considered ready.");
+                }
+
                 bool eligible = (balance >= _defaultThreshold) && active;
                 _bitmap.SetEligible(id, eligible);
                 _categoryPlane.SetAccount(id, balance, active);
+
+                processed++;
+                if (progressCallback != null && processed % 1_000_000 == 0)
+                {
+                    progressCallback(processed, maxId);
+                }
             }
 
-            processed++;
-            if (progressCallback != null && processed % 1_000_000 == 0)
-            {
-                progressCallback(processed, maxId);
-            }
+            await reader.CloseAsync().ConfigureAwait(false);
+            await tx.CommitAsync(ct).ConfigureAwait(false);
+
+            // Record initial watermark
+            Interlocked.Exchange(ref _lastAppliedMutationSeq, snapshotWatermark);
+
+            // 3. Catch up any mutations committed after the snapshot transaction began
+            int replayed = await ReconcilePendingMutationsAsync(ct).ConfigureAwait(false);
+
+            IsHealthy = true;
+            sw.Stop();
+            return (processed, snapshotWatermark + replayed, sw.Elapsed);
         }
-
-        await reader.CloseAsync().ConfigureAwait(false);
-        await tx.CommitAsync(ct).ConfigureAwait(false);
-
-        // Record initial watermark
-        Interlocked.Exchange(ref _lastAppliedMutationSeq, snapshotWatermark);
-
-        // 3. Catch up any mutations committed after the snapshot transaction began
-        int replayed = await ReconcilePendingMutationsAsync(ct).ConfigureAwait(false);
-
-        sw.Stop();
-        return (processed, snapshotWatermark + replayed, sw.Elapsed);
+        catch
+        {
+            IsHealthy = false;
+            throw;
+        }
     }
 
     public ValueTask DisposeAsync()

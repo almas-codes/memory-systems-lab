@@ -60,6 +60,7 @@ public class EapCoreTests
         string connStr = PostgreSqlPreflight.GetConnectionString();
         // Test in-memory bitmap and category updating
         var coord = new EapCoordinator(100, connStr);
+        coord.MarkHealthy(true);
 
         coord.Bitmap.SetEligible(10, true);
         Assert.True(coord.QueryEligible(10));
@@ -204,6 +205,7 @@ public class EapCoreTests
         string connStr = PostgreSqlPreflight.GetConnectionString();
         long maxId = 100;
         var coord = new EapCoordinator(maxId, connStr);
+        coord.MarkHealthy(true);
 
         // Initialize account 10 as eligible (balance = 150, active = true)
         coord.Bitmap.SetEligible(10, true);
@@ -255,6 +257,7 @@ public class EapCoreTests
         // ID 5 and ID 1029 share shard (5 % 1024 == 5, 1029 % 1024 == 5)
         long maxId = 2048;
         var coord = new EapCoordinator(maxId, connStr);
+        coord.MarkHealthy(true);
 
         // Pre-initialize both accounts to consistent eligible state
         coord.Bitmap.SetEligible(5, true);
@@ -356,12 +359,13 @@ public class EapCoreTests
     public async Task CategorySemantics_CompareAgainstPostgreSqlGroundTruth()
     {
         string connStr = PostgreSqlPreflight.GetConnectionString();
-        long maxId = 10_000;
+        long maxId = 1_000_000;
         var coord = new EapCoordinator(maxId, connStr, tableName: "eap_lab.accounts_500m");
 
-        // Populate the first 10,000 accounts from DB into coordinator
+        // Populate accounts from DB into coordinator
         await coord.Bitmap.BuildFromPostgreSqlAsync(connStr, 100, "eap_lab.accounts_500m");
         await coord.CategoryPlane.BuildFromPostgreSqlAsync(connStr, "eap_lab.accounts_500m");
+        coord.MarkHealthy(true);
 
         // Verify that QueryThreshold with DB fallback produces 100% agreement with direct SQL query
         int[] testThresholds = { 0, 1, 12, 13, 124, 125, 129, 130, 194, 195, 196, 208 };
@@ -460,6 +464,7 @@ public class EapCoreTests
         string connStr = PostgreSqlPreflight.GetConnectionString();
         long maxId = 100;
         var coord = new EapCoordinator(maxId, connStr, mutationLogTable: "eap_audit_20261028.mutation_log");
+        coord.MarkHealthy(true);
 
         // Initial state for account 42: balance = 50 (ineligible)
         coord.Bitmap.SetEligible(42, false);
@@ -483,6 +488,182 @@ public class EapCoreTests
         // Memory plane must now reflect the replayed mutation
         Assert.True(coord.QueryEligible(42));
         Assert.True(coord.QueryThreshold(42, 100));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_IdBeyondAllocatedMaximum_ThrowsAndMarksUnhealthy()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_overflow";
+
+        await using (var conn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await conn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL);
+                INSERT INTO {testTable} (id, balance, active) VALUES (1, 150, true), (250, 150, true);", conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        // Capacity allocated is only 100, but row with ID 250 exists
+        var coord = new EapCoordinator(100, connStr, tableName: testTable);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await coord.HydrateSynchronizedFromPostgreSqlAsync();
+        });
+
+        Assert.Contains("exceeds allocated capacity", ex.Message);
+        Assert.False(coord.IsHealthy, "Coordinator must NOT declare healthy when an out-of-bounds row was detected.");
+
+        // Reads must be rejected when coordinator is unhealthy
+        Assert.Throws<InvalidOperationException>(() => coord.QueryEligible(1));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_MissingIdInsideAllocatedRange_HandlesSparsely()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_sparse_missing";
+
+        await using (var conn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await conn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL);
+                INSERT INTO {testTable} (id, balance, active) VALUES (1, 150, true), (5, 150, true), (20, 150, true);", conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(100, connStr, tableName: testTable);
+        var (processed, _, _) = await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        Assert.Equal(3, processed);
+        Assert.True(coord.IsHealthy);
+
+        // Populated IDs are eligible
+        Assert.True(coord.QueryEligible(1));
+        Assert.True(coord.QueryEligible(5));
+        Assert.True(coord.QueryEligible(20));
+
+        // Missing IDs inside the range are safely false
+        Assert.False(coord.QueryEligible(2));
+        Assert.False(coord.QueryEligible(3));
+        Assert.False(coord.QueryEligible(19));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_EmptyTable_HandledSafely()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_empty";
+
+        await using (var conn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await conn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL);", conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(100, connStr, tableName: testTable);
+        var (processed, _, _) = await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        Assert.Equal(0, processed);
+        Assert.True(coord.IsHealthy);
+        Assert.False(coord.QueryEligible(1));
+        Assert.False(coord.QueryEligible(50));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_SparseIds_CorrectlyIndexed()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_sparse_values";
+
+        await using (var conn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await conn.OpenAsync();
+            await using var cmd = new Npgsql.NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL);
+                INSERT INTO {testTable} (id, balance, active) VALUES 
+                    (10, 130, true), 
+                    (50, 65, true), 
+                    (90, 20, false);", conn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(100, connStr, tableName: testTable);
+        await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        Assert.True(coord.IsHealthy);
+
+        // Account 10: balance 130, active -> eligible at threshold 100, and exact at 130
+        Assert.True(coord.QueryEligible(10));
+        Assert.True(coord.QueryThreshold(10, 130));
+
+        // Account 50: balance 65, active -> not eligible at 100, eligible at 65
+        Assert.False(coord.QueryEligible(50));
+        Assert.True(coord.QueryThreshold(50, 65));
+
+        // Account 90: active false -> not eligible
+        Assert.False(coord.QueryEligible(90));
+        Assert.False(coord.QueryThreshold(90, 13));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_FailedHydrationOperation_LeavesPlaneUnhealthy()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string nonExistentTable = "eap_audit_20261028.non_existent_table_xyz_123";
+
+        var coord = new EapCoordinator(100, connStr, tableName: nonExistentTable);
+
+        await Assert.ThrowsAsync<Npgsql.PostgresException>(async () =>
+        {
+            await coord.HydrateSynchronizedFromPostgreSqlAsync();
+        });
+
+        Assert.False(coord.IsHealthy);
+        Assert.Throws<InvalidOperationException>(() => coord.QueryEligible(1));
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Hydration_CancellationDuringHydration_AbortsAndLeavesUnhealthy()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        var coord = new EapCoordinator(100, connStr, tableName: "eap_lab.accounts_500m");
+
+        using var cts = new System.Threading.CancellationTokenSource();
+        cts.Cancel(); // Pre-cancelled token
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await coord.HydrateSynchronizedFromPostgreSqlAsync(ct: cts.Token);
+        });
+
+        Assert.False(coord.IsHealthy);
+        Assert.Throws<InvalidOperationException>(() => coord.QueryEligible(1));
 
         await coord.DisposeAsync();
     }

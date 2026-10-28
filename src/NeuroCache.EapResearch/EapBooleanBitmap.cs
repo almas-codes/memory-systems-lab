@@ -82,16 +82,18 @@ public sealed class EapBooleanBitmap
             int balance = reader.GetInt32(1);
             bool active = reader.GetBoolean(2);
 
-            if ((ulong)(id - 1) < (ulong)_maxId)
+            if (id <= 0 || (ulong)(id - 1) >= (ulong)_maxId)
             {
-                bool eligible = (balance >= threshold) && active;
-                if (eligible)
-                {
-                    long ordinal = id - 1;
-                    int word = (int)(ordinal >> 6);
-                    int bit = (int)(ordinal & 63);
-                    _bits[word] |= (1UL << bit);
-                }
+                throw new InvalidOperationException($"Hydration encountered account ID {id} which exceeds allocated capacity {_maxId}. A partial plane cannot be considered ready.");
+            }
+
+            bool eligible = (balance >= threshold) && active;
+            if (eligible)
+            {
+                long ordinal = id - 1;
+                int word = (int)(ordinal >> 6);
+                int bit = (int)(ordinal & 63);
+                _bits[word] |= (1UL << bit);
             }
 
             processed++;

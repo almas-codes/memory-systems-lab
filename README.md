@@ -105,6 +105,7 @@ memory-systems-lab/
 │   ├── NeuroCache.ScaleTests/        # Bounded streaming memory allocation verification
 │   └── NeuroCache.EapResearch.Tests/ # EAP bitmap indexing, category packing, and consistency tests
 ├── docs/
+│   ├── FINAL-EVIDENCE-RECONCILIATION.md  # Definitive evidence reconciliation, benchmarks & readiness verdict
 │   ├── MASTER-RESEARCH-REPORT.md         # Full unified research and architecture report
 │   ├── BENCHMARK-REPORT.md               # Empirical benchmark report and comparison matrix
 │   ├── ADVERSARIAL-CORRECTNESS-REPORT.md # Concurrency, Seqlock, outbox gap, and boundary proofs
@@ -174,6 +175,7 @@ dotnet run -c Release --project src/NeuroCache.Cli -- eap-benchmark --count 1000
 ## 6. Detailed Research & Audit Reports
 
 For in-depth mathematical proofs, latency quantile distributions, memory charts, and systems analysis:
+- ⚖️ [Final Evidence Reconciliation (Definitive Audit & Decision)](docs/FINAL-EVIDENCE-RECONCILIATION.md)
 - 📖 [Master Research Report (Full Unified Publication)](docs/MASTER-RESEARCH-REPORT.md)
 - 📊 [Benchmark Results Report & Comparative Matrix](docs/BENCHMARK-REPORT.md)
 - 🛡️ [Adversarial Correctness Audit Report](docs/ADVERSARIAL-CORRECTNESS-REPORT.md)

@@ -158,23 +158,25 @@ public sealed class EapPackedCategoryPlane
             int balance = reader.GetInt32(1);
             bool active = reader.GetBoolean(2);
 
-            if ((ulong)(id - 1) < (ulong)_maxId)
+            if (id <= 0 || (ulong)(id - 1) >= (ulong)_maxId)
             {
-                long ordinal = id - 1;
-                if (active)
-                {
-                    int activeWord = (int)(ordinal >> 6);
-                    int activeBit = (int)(ordinal & 63);
-                    _activeBits[activeWord] |= (1UL << activeBit);
-                }
-
-                int byteIndex = (int)(ordinal >> 1);
-                byte cat = BalanceToCategory(balance);
-                if ((ordinal & 1) == 0)
-                    _categories[byteIndex] = (byte)((_categories[byteIndex] & 0xF0) | (cat & 0x0F));
-                else
-                    _categories[byteIndex] = (byte)((_categories[byteIndex] & 0x0F) | (cat << 4));
+                throw new InvalidOperationException($"Hydration encountered account ID {id} which exceeds allocated capacity {_maxId}. A partial plane cannot be considered ready.");
             }
+
+            long ordinal = id - 1;
+            if (active)
+            {
+                int activeWord = (int)(ordinal >> 6);
+                int activeBit = (int)(ordinal & 63);
+                _activeBits[activeWord] |= (1UL << activeBit);
+            }
+
+            int byteIndex = (int)(ordinal >> 1);
+            byte cat = BalanceToCategory(balance);
+            if ((ordinal & 1) == 0)
+                _categories[byteIndex] = (byte)((_categories[byteIndex] & 0xF0) | (cat & 0x0F));
+            else
+                _categories[byteIndex] = (byte)((_categories[byteIndex] & 0x0F) | (cat << 4));
 
             processed++;
             if (progressCallback != null && processed % 50_000_000 == 0)
