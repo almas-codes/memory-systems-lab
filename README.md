@@ -105,6 +105,7 @@ memory-systems-lab/
 │   ├── NeuroCache.ScaleTests/        # Bounded streaming memory allocation verification
 │   └── NeuroCache.EapResearch.Tests/ # EAP bitmap indexing, category packing, and consistency tests
 ├── docs/
+│   ├── FINAL-INTEGRITY-AUDIT.md          # Final benchmark integrity, catalog audit, and discrepancy reconciliation
 │   ├── FINAL-50M-VALIDATION.md           # Master final correctness gate & 50M performance validation
 │   ├── FINAL-EVIDENCE-RECONCILIATION.md  # Definitive evidence reconciliation, benchmarks & readiness verdict
 │   ├── MASTER-RESEARCH-REPORT.md         # Full unified research and architecture report

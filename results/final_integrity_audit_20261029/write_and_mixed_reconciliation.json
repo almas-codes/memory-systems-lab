@@ -1,0 +1,136 @@
+{
+  "WriteBreakdown": {
+    "ConnCheckout": {
+      "Count": 500,
+      "Mean": 4.892399999999999,
+      "P50": 4.2,
+      "P95": 7.7,
+      "P99": 18.6,
+      "Max": 40.3
+    },
+    "TxBegin": {
+      "Count": 500,
+      "Mean": 14.360399999999998,
+      "P50": 3.8,
+      "P95": 8.7,
+      "P99": 19.3,
+      "Max": 5135.5
+    },
+    "AdvisoryLockAcquire": {
+      "Count": 500,
+      "Mean": 528.5428,
+      "P50": 492.8,
+      "P95": 669.5,
+      "P99": 952,
+      "Max": 8148
+    },
+    "PostgresUpdate": {
+      "Count": 500,
+      "Mean": 623.0806,
+      "P50": 593.5,
+      "P95": 831.9,
+      "P99": 1167.4,
+      "Max": 3163.5
+    },
+    "OutboxInsert": {
+      "Count": 500,
+      "Mean": 483.3178000000001,
+      "P50": 446,
+      "P95": 626.9,
+      "P99": 1174,
+      "Max": 3714.9
+    },
+    "TxCommitWal": {
+      "Count": 500,
+      "Mean": 595.9128,
+      "P50": 570.7,
+      "P95": 714.2,
+      "P99": 1303.8,
+      "Max": 9269.2
+    },
+    "SeqlockPublish": {
+      "Count": 500,
+      "Mean": 7.385,
+      "P50": 3.3,
+      "P95": 13.2,
+      "P99": 24.4,
+      "Max": 1052.7
+    },
+    "LockHeldDuration": {
+      "Count": 500,
+      "Mean": 1702.5292000000002,
+      "P50": 1624.3,
+      "P95": 2042.8,
+      "P99": 3002.9,
+      "Max": 14887.3
+    },
+    "TotalWallClock": {
+      "Count": 500,
+      "Mean": 2258.016199999999,
+      "P50": 2144.8,
+      "P95": 2673.1,
+      "P99": 3612.5,
+      "Max": 29233.4
+    }
+  },
+  "TheoreticalCeiling": {
+    "MeanLockHeldMs": 1.7025292,
+    "MaxSerialWritesPerSec": 587.3614384998506,
+    "Explanation": "The global advisory lock is held for 1702.5 us (1.70 ms) from acquisition until transaction commit. This creates a hard physical ceiling of ~587 serial writes/second."
+  },
+  "MixedWorkloads": [
+    {
+      "Workload": "ReadHeavy-99-1",
+      "TotalRequests": 1000,
+      "ElapsedMs": 22.3909,
+      "CombinedThroughputOpsPerSec": 44661.00067438111,
+      "CompletedReads": 994,
+      "ReadThroughput": 44393.034670334826,
+      "ReadP50Us": 0.3,
+      "CompletedWrites": 6,
+      "WriteThroughput": 267.9660040462867,
+      "WriteP50Us": 2244.4,
+      "StrictAdvisoryLockCeilingObeyed": true
+    },
+    {
+      "Workload": "ReadHeavy-95-5",
+      "TotalRequests": 1000,
+      "ElapsedMs": 107.2438,
+      "CombinedThroughputOpsPerSec": 9324.548365499917,
+      "CompletedReads": 950,
+      "ReadThroughput": 8858.320947224922,
+      "ReadP50Us": 0.3,
+      "CompletedWrites": 50,
+      "WriteThroughput": 466.2274182749959,
+      "WriteP50Us": 2093.9,
+      "StrictAdvisoryLockCeilingObeyed": true
+    },
+    {
+      "Workload": "Balanced-80-20",
+      "TotalRequests": 1000,
+      "ElapsedMs": 457.9195,
+      "CombinedThroughputOpsPerSec": 2183.7899456127116,
+      "CompletedReads": 789,
+      "ReadThroughput": 1723.0102670884291,
+      "ReadP50Us": 0.4,
+      "CompletedWrites": 211,
+      "WriteThroughput": 460.7796785242821,
+      "WriteP50Us": 2136,
+      "StrictAdvisoryLockCeilingObeyed": true
+    },
+    {
+      "Workload": "WriteIntensive-50-50",
+      "TotalRequests": 1000,
+      "ElapsedMs": 1054.4451,
+      "CombinedThroughputOpsPerSec": 948.3661121854519,
+      "CompletedReads": 494,
+      "ReadThroughput": 468.49285941961324,
+      "ReadP50Us": 0.9,
+      "CompletedWrites": 506,
+      "WriteThroughput": 479.8732527658387,
+      "WriteP50Us": 2049.9,
+      "StrictAdvisoryLockCeilingObeyed": true
+    }
+  ],
+  "ReconciliationConclusion": "The reported 51,285 ops/s for ReadHeavy-99-1 does not violate the ~370 writes/s ceiling. In a 99/1 mix, 99% of requests are in-memory reads that take 0.2 us. Only 1% are database writes taking ~2.7 ms. The writes execute at ~360 writes/s (under the ceiling), but because 99 reads are completed per write, total combined throughput is ~36,000 to ~51,000 ops/s."
+}

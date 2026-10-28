@@ -1,0 +1,39 @@
+{
+  "ArchitectureConsistencyModel": "Eventual Synchronization (Not Zero-Staleness)",
+  "UpdateTest": {
+    "Operation": "External SQL UPDATE id=1 (balance: 50 -\u003E 180)",
+    "InitialEapValue": false,
+    "PostCommitImmediateEapValue": false,
+    "StaleWindowObserved": true,
+    "ReplayedMutations": 1,
+    "PostReconciliationEapValue": true,
+    "EventualConsistencyPreserved": true
+  },
+  "BoundaryCrossingTest": {
+    "Operation": "External SQL UPDATE id=2 (balance: 150 -\u003E 40)",
+    "InitialEapValue": true,
+    "PostCommitImmediateEapValue": true,
+    "StaleWindowObserved": true,
+    "ReplayedMutations": 1,
+    "PostReconciliationEapValue": false,
+    "EventualConsistencyPreserved": true
+  },
+  "InsertTest": {
+    "Operation": "External SQL INSERT id=4 (balance: 150)",
+    "PostCommitImmediateEapValue": false,
+    "StaleWindowObserved": true,
+    "ReplayedMutations": 1,
+    "PostReconciliationEapValue": true,
+    "EventualConsistencyPreserved": true
+  },
+  "DeleteTest": {
+    "Operation": "External SQL DELETE id=3",
+    "InitialEapValue": true,
+    "PostCommitImmediateEapValue": true,
+    "StaleWindowObserved": true,
+    "ReplayedMutations": 1,
+    "PostReconciliationEapValue": false,
+    "EventualConsistencyPreserved": true
+  },
+  "FormalConclusion": "EAP does NOT provide immediate linearizability or zero-staleness for external writes. Readers querying EAP between the SQL commit and the outbox poll observe the pre-commit value. Staleness is bounded by the outbox polling frequency or replication stream delay."
+}

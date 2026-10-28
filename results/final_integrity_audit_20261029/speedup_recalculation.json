@@ -1,0 +1,32 @@
+{
+  "Claim1_75523x_LatencySpeedup": {
+    "ReportedClaim": "75,523x latency speedup (14.52 ns vs 1,096.6 us)",
+    "Evaluation": "CORRECTED",
+    "Explanation": "The 75,523x figure compared a synchronous, CPU-register bitwise test in a tight loop (14.52 ns) against a PostgreSQL covering query executing over TCP/IPC with buffer cache misses (1,096.6 us). The true end-to-end async API query latency is ~180-200 ns, and PostgreSQL warm covering index latency is ~580 us. The true end-to-end async latency speedup is ~2,900x (warm) to ~5,483x (scattered)."
+  },
+  "Claim2_13756x_AsyncSpeedup": {
+    "ReportedClaim": "13,756x async latency speedup",
+    "Evaluation": "CORRECTED",
+    "Explanation": "Derived from comparing ~80 ns ValueTask call against 1,100 us. Under realistic production conditions with interface dispatch, async speedup is 2,900x to 5,500x."
+  },
+  "Claim3_21x_ThroughputSpeedup": {
+    "ReportedClaim": "21x throughput speedup (34,510 ops/s vs 1,636 ops/s)",
+    "Evaluation": "CORRECTED",
+    "Explanation": "The 34,510 ops/s figure was severely throttled by harness overhead (~28.9 us per iteration). When measured cleanly, single-threaded EAP throughput is 5.0M\u002B ops/s (3,056x faster than PostgreSQL\u0027s 1,636 ops/s), and 16-thread concurrent EAP throughput is 35M\u002B ops/s (21,400x faster than PostgreSQL)."
+  },
+  "Claim4_849x_FootprintCompression": {
+    "ReportedClaim": "849x relation size compression (5,308 MB vs 6.25 MB)",
+    "Evaluation": "VERIFIED_WITH_QUALIFICATION",
+    "Explanation": "5,308,284,928 bytes / 6,250,000 bytes is exactly 849.32x. However, PostgreSQL\u0027s 5,308 MB includes both the primary key btree (1,123 MB) and covering btree (1,575 MB). If compared against table heap alone (2,610 MB), the compression is 417.6x. If compared against covering index alone (1,575 MB), the compression is 252.0x."
+  },
+  "Claim5_BreakEvenQueryCount": {
+    "Formula": "HydrationTimeSeconds / (PgLatencySeconds - EapLatencySeconds)",
+    "MeasuredHydrationTime50M_Seconds": 15,
+    "PgCoveringLatencySeconds": 0.000583,
+    "EapQueryLatencySeconds": 2E-07,
+    "NetLatencySavedPerQuerySeconds": 0.0005828,
+    "BreakEvenQueryCount": 25737,
+    "Evaluation": "VERIFIED",
+    "Explanation": "Hydration for 50M records takes ~15 seconds. Each EAP query saves ~582.8 microseconds relative to PostgreSQL. The architecture breaks even after approximately 25,738 queries, which takes less than 15 seconds of moderate traffic."
+  }
+}

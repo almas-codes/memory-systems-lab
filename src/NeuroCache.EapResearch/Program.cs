@@ -47,6 +47,12 @@ public class Program
                 case "adversarial":
                     return await HandleAdversarialAsync(args);
 
+                case "final-integrity-audit":
+                case "final-audit":
+                    var auditor = new FinalIntegrityAuditor();
+                    await auditor.RunFullAuditAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();

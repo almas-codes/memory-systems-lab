@@ -1,0 +1,67 @@
+{
+  "Table": "eap_audit_20261028.accounts_50m",
+  "RowCount": 50000000,
+  "Constraints": [],
+  "HasExplicitPrimaryKeyConstraint": false,
+  "Indexes": [
+    {
+      "IndexName": "idx_accounts_50m_covering",
+      "IsUnique": false,
+      "IsPrimaryKey": false,
+      "Bytes": 1574920192,
+      "Pretty": "1502 MB",
+      "Definition": "CREATE INDEX idx_accounts_50m_covering ON eap_audit_20261028.accounts_50m USING btree (id) INCLUDE (balance, active)"
+    },
+    {
+      "IndexName": "idx_accounts_50m_id",
+      "IsUnique": true,
+      "IsPrimaryKey": false,
+      "Bytes": 1123115008,
+      "Pretty": "1071 MB",
+      "Definition": "CREATE UNIQUE INDEX idx_accounts_50m_id ON eap_audit_20261028.accounts_50m USING btree (id)"
+    }
+  ],
+  "RedundancyAnalysis": {
+    "IsIdIndexRedundant": true,
+    "Explanation": "idx_accounts_50m_id (UNIQUE btree on id) and idx_accounts_50m_covering (btree on id INCLUDE balance, active) are both B-trees with leading key column \u0027id\u0027. If idx_accounts_50m_covering were declared UNIQUE, idx_accounts_50m_id would be 100% redundant. Even without UNIQUE, any query filtering on \u0027id\u0027 can execute via the covering index. Maintaining both forces PostgreSQL to double-index every insert/update.",
+    "PkIndexBytes": 1123115008,
+    "PkIndexMB_Decimal": 1123.115008,
+    "PkIndexMiB_Binary": 1071.0859375,
+    "CoveringIndexBytes": 1574920192,
+    "CoveringIndexMB_Decimal": 1574.920192,
+    "CoveringIndexMiB_Binary": 1501.9609375,
+    "PotentialSavingsBytes": 1123115008,
+    "PotentialSavingsPercentOfIndexes": 41.62714437528465
+  },
+  "ExactFootprint": {
+    "HeapBytes": 2610749440,
+    "HeapMB_Decimal": 2610.74944,
+    "HeapMiB_Binary": 2489.8046875,
+    "HeapBytesPerRow": 52.2149888,
+    "IndexBytes": 2698051584,
+    "IndexMB_Decimal": 2698.051584,
+    "IndexMiB_Binary": 2573.0625,
+    "IndexBytesPerRow": 53.96103168,
+    "TotalRelationBytes": 5308801024,
+    "TotalRelationMB_Decimal": 5308.801024,
+    "TotalRelationMiB_Binary": 5062.8671875,
+    "TotalRelationGB_Decimal": 5.308801024,
+    "TotalRelationGiB_Binary": 4.944206237792969,
+    "TotalBytesPerRow": 106.17602048,
+    "EapBooleanBitmapBytes": 6250000,
+    "EapBooleanBitmapMB_Decimal": 6.25,
+    "EapBooleanBitmapMiB_Binary": 5.9604644775390625,
+    "EapBooleanBitmapBytesPerRow": 0.125,
+    "EapCategoryBytes": 31250000,
+    "EapCategoryMB_Decimal": 31.25,
+    "EapCategoryMiB_Binary": 29.802322387695312,
+    "EapCategoryBytesPerRow": 0.625
+  },
+  "UnitDiscrepancyExplanation": "The previous report labeled 5.96 MiB as \u00275.96 MB\u0027. In decimal units (base 10), 6,250,000 bytes is exactly 6.25 MB. In binary units (base 2), 6,250,000 bytes / (1024^2) is 5.960464 MiB. The prior report performed division by 1024*1024 but appended the decimal \u0027MB\u0027 suffix. Similarly, 31,250,000 bytes was reported as \u002729.8 MB\u0027 instead of 31.25 MB decimal / 29.80 MiB binary.",
+  "CompressionRatios": {
+    "TotalPostgresVsEapBitmap": 849.40816384,
+    "HeapOnlyVsEapBitmap": 417.7199104,
+    "CoveringIndexOnlyVsEapBitmap": 251.98723072,
+    "TotalPostgresVsEapCategory": 169.881632768
+  }
+}

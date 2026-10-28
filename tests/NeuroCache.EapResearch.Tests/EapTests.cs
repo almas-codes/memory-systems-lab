@@ -984,4 +984,89 @@ public class EapCoreTests
 
         await coord.DisposeAsync();
     }
+
+    [Fact]
+    public async Task ExternalMutation_StalenessWindow_ProvesEventualConsistency()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_staleness_proof_accounts";
+        string testOutbox = "eap_audit_20261028.test_staleness_proof_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable} CASCADE;
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) VALUES (1, 50, true), (2, 150, true);
+
+                CREATE OR REPLACE FUNCTION eap_audit_20261028.fn_staleness_proof_trg()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    IF (TG_OP = 'DELETE') THEN
+                        INSERT INTO {testOutbox} (account_id, balance, active) VALUES (OLD.id, 0, false);
+                        RETURN OLD;
+                    ELSE
+                        INSERT INTO {testOutbox} (account_id, balance, active) VALUES (NEW.id, NEW.balance, NEW.active);
+                        RETURN NEW;
+                    END IF;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                DROP TRIGGER IF EXISTS trg_staleness_proof ON {testTable};
+                CREATE TRIGGER trg_staleness_proof
+                AFTER INSERT OR UPDATE OR DELETE ON {testTable}
+                FOR EACH ROW EXECUTE FUNCTION eap_audit_20261028.fn_staleness_proof_trg();
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+        await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        // 1. Initial State
+        Assert.False(coord.QueryEligible(1)); // Balance 50 -> ineligible
+        Assert.True(coord.QueryEligible(2));  // Balance 150 -> eligible
+
+        // 2. External SQL commits UPDATE on ID 1
+        await using (var extConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await extConn.OpenAsync();
+            await using var extCmd = new NpgsqlCommand($"UPDATE {testTable} SET balance = 190 WHERE id = 1;", extConn);
+            await extCmd.ExecuteNonQueryAsync();
+        }
+
+        // CRITICAL INVARIANT: Prior to reconciliation, EAP reader observes STALE data!
+        // PostgreSQL committed 190 (eligible), but EAP in-memory bitmap still observes false!
+        Assert.False(coord.QueryEligible(1), "EAP should still hold stale value (false) before outbox poll!");
+
+        // 3. Reconcile outbox
+        int replayed = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(1, replayed);
+
+        // Post-reconciliation: EAP is synchronized
+        Assert.True(coord.QueryEligible(1), "EAP must observe true after reconciliation!");
+
+        // 4. External SQL commits DELETE on ID 2
+        await using (var extConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await extConn.OpenAsync();
+            await using var extCmd = new NpgsqlCommand($"DELETE FROM {testTable} WHERE id = 2;", extConn);
+            await extCmd.ExecuteNonQueryAsync();
+        }
+
+        // Prior to reconciliation: EAP still observes true (stale!)
+        Assert.True(coord.QueryEligible(2), "EAP should still observe stale true before delete outbox poll!");
+
+        int replayedDelete = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(1, replayedDelete);
+
+        // After reconciliation: EAP observes false (cleared)
+        Assert.False(coord.QueryEligible(2), "EAP must observe false after delete reconciliation!");
+
+        await coord.DisposeAsync();
+    }
 }

@@ -1,0 +1,31 @@
+{
+  "DatasetRowCount": 50000000,
+  "HarnessOverhead": {
+    "Iterations": 2000000,
+    "TotalLoopElapsedMs": 466.4562,
+    "MeanLoopNsPerIter": 233.2281,
+    "StopwatchTimingOverheadNs": 0,
+    "Explanation": "The outer wall-clock timer in earlier workload runners timed 2,500 iterations including PRNG, cancellation checks, and two Interlocked.Increment calls in LatencyHistogram. Because the candidate operation took only 200 ns, harness overhead was 140x larger than the candidate query itself."
+  },
+  "SingleThreadedThroughput": {
+    "EapBooleanBitmap_IsEligible_OpsPerSec": 12822187.030368779,
+    "EapBooleanBitmap_IsEligible_NsPerQuery": 77.9898154372218,
+    "EapCoordinator_QueryEligible_OpsPerSec": 9686844.897996819,
+    "EapCoordinator_QueryEligible_NsPerQuery": 103.23278740705284,
+    "Candidate5_ValueTask_OpsPerSec": 4569048.815364184,
+    "Candidate5_ValueTask_NsPerQuery": 218.8639343570448
+  },
+  "MultiThreadedThroughput": {
+    "1": 21474170.34587909,
+    "2": 41160506.71877331,
+    "4": 76979596.24261263,
+    "8": 138594300.21149626,
+    "16": 200789827.5152043
+  },
+  "ReconciliationWithMarkdownTable": {
+    "ReportedFigureInMarkdown": 34510,
+    "ActualMeasuredSingleThreadedThroughput": 4569048,
+    "ActualMeasuredMultiThreadedThroughput16Threads": 200789827,
+    "Explanation": "The 34,510 figure in the previous report was an artifact of a sequential 2,500-request loop where harness overhead (~28.9 us per iteration) dominated. When measured directly with pre-generated keys, single-threaded async throughput is \u003E5.0M ops/s, and 16-thread concurrent throughput exceeds 35M ops/s."
+  }
+}

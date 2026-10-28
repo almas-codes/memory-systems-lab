@@ -1,0 +1,27 @@
+{
+  "DesignProposal": "Replace single global advisory lock hashtext(\u0027eap_outbox_lock\u0027) with 1,024 striped shard locks.",
+  "DeadlockEvaluation": {
+    "SingleAccountTransactions": "Deadlock-free: each transaction touches only one account and acquires only one shard lock.",
+    "MultiAccountTransactions": "Deadlock vulnerable: if Transaction 1 updates Account A (Shard 1) then Account B (Shard 2), while Transaction 2 updates Account B (Shard 2) then Account A (Shard 1), an unresolvable PostgreSQL deadlock occurs.",
+    "DeadlockAvoidanceRule": "Multi-account transactions MUST sort distinct shard IDs in strict ascending order and acquire locks in that sequence."
+  },
+  "SequenceGapAnomaly": {
+    "ProblemDescription": "In PostgreSQL, BIGSERIAL sequences are non-transactional: sequence values are incremented immediately upon nextval() before transaction commit. If Transactions T1 and T2 run concurrently on different shard locks, T1 may receive seq_id=100 and T2 may receive seq_id=101. If T2 commits while T1 is still in flight, seq_id=101 becomes visible while seq_id=100 is uncommitted.",
+    "GlobalWatermarkFailure": "If an outbox poller queries \u0060WHERE seq_id \u003E @lastSeq ORDER BY seq_id\u0060 and advances @lastSeq to 101, it advances past 100. When T1 subsequently commits seq_id=100, the poller will NEVER see it because 100 \u003C= 101. That mutation is permanently lost from the cache!",
+    "WhySingleGlobalLockWasUsed": "The single global advisory lock serializes commits so that seq_id generation order strictly matches transaction commit order, eliminating sequence gaps at the cost of capping throughput at ~370 writes/second."
+  },
+  "FeasibleArchitecturesForHighThroughput": [
+    {
+      "Name": "Per-Shard Outbox Queues",
+      "Description": "Maintain 1,024 separate outbox queues/sequences. Each shard maintains its own independent watermark. Eliminates global lock contention without gap anomalies."
+    },
+    {
+      "Name": "PostgreSQL Logical Replication / WAL Decoding",
+      "Description": "Use PostgreSQL logical decoding (test_decoding or pgoutput) to stream committed transactions from WAL. Guarantees gap-free commit-order delivery without application locks."
+    },
+    {
+      "Name": "Sliding Window / Commit Confirmation Watermark",
+      "Description": "Track individual committed seq_ids using a sliding bitmap window, only advancing the contiguous high-watermark when all lower sequence numbers have committed or timed out."
+    }
+  ]
+}
