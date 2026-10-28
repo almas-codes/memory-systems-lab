@@ -1,0 +1,24 @@
+{
+  "ShadowModeContractStressTelemetry": {
+    "PostgreSqlAuthoritativeAlwaysMaintained": true,
+    "TotalAuthoritativeQueriesProcessed": 1000,
+    "TotalShadowComparisonsEvaluated": 800,
+    "TotalMatches": 799,
+    "TotalMismatches": 1,
+    "MatchFidelityPercentage": 99.88,
+    "CircuitBreakerTripsRecorded": 1,
+    "CircuitBreakerTrippedOnLag": true,
+    "MeasuredLagDuringTrip": 50,
+    "RecoveryReplayedMutations": 50,
+    "RecoveryDurationMs": 1.6555,
+    "PostRecoveryLag": 0,
+    "AvgPostgreSqlLatencyUs": 555.93,
+    "AvgEapLatencyNs": 352.69,
+    "SafetyContractInvariants": {
+      "PostgreSqlAnswersNeverSubordinated": true,
+      "ShadowBypassedWhenUnhealthyOrLagging": true,
+      "ZeroExceptionsExposedToCaller": true,
+      "ConvergenceAfterRecoveryVerified": true
+    }
+  }
+}

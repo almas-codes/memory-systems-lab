@@ -71,6 +71,12 @@ public class Program
                     await stateAuditor.RunAllAsync();
                     return 0;
 
+                case "rollback-validation":
+                case "rollback-gate":
+                    var rollbackRunner = new FinalRollbackGapValidationRunner();
+                    await rollbackRunner.RunAllAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();

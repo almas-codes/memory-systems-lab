@@ -1,0 +1,49 @@
+{
+  "ReconciledMemoryLayoutFor50MRecords": {
+    "RecordCount": 50000000,
+    "BooleanPlane": {
+      "BitsPerAccount": 1,
+      "TotalBytes": 6250000,
+      "SizeDecimalMb": 6.25,
+      "SizeBinaryMib": 5.96
+    },
+    "PackedCategoryPlane": {
+      "BitsPerAccount": 4,
+      "TotalBytes": 25000000,
+      "SizeDecimalMb": 25,
+      "SizeBinaryMib": 23.84
+    },
+    "ActiveBitPlane": {
+      "BitsPerAccount": 1,
+      "TotalBytes": 6250000,
+      "SizeDecimalMb": 6.25,
+      "SizeBinaryMib": 5.96
+    },
+    "CombinedCategoryAndActivePlane": {
+      "TotalBytes": 31250000,
+      "SizeDecimalMb": 31.25,
+      "SizeBinaryMib": 29.8
+    },
+    "TotalAllPlanes": {
+      "TotalBytes": 37500000,
+      "SizeDecimalMb": 37.5,
+      "SizeBinaryMib": 35.76
+    }
+  },
+  "UnitsCorrectionAnalysis": {
+    "BytesPerDictionaryEntry": 60.89,
+    "FiftyMillionEntriesCalculation": "60.89 bytes * 50,000,000 = 3,044,500,000 bytes",
+    "SizeInDecimalGigabytes": 3.044,
+    "SizeInBinaryMebibytes": 2903.5,
+    "SizeInBinaryGibibytes": 2.835,
+    "CorrectionNote": "Previous text reported 2,903 MB decimal. Correct distinction: exactly 3.04 GB decimal or 2,903.5 MiB binary."
+  },
+  "PruningAcrossRollbackGapsVerification": {
+    "InitialMetadataCount": 1000,
+    "WatermarkBeforePruning": 3000,
+    "EntriesPruned": 1000,
+    "EntriesRemaining": 0,
+    "ObsoleteWriteProtectionPreserved": true,
+    "SteadyStateMetadataCostWithPruning": "0 - 50 entries (\u003C 5 KB)"
+  }
+}

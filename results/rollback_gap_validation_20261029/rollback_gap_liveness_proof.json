@@ -1,0 +1,46 @@
+{
+  "PermanentSequenceGapAudit": {
+    "WatermarkAdvancesAfterSingleRollback": true,
+    "WatermarkAdvancesAfterFiveConsecutiveRollbacks": true,
+    "WatermarkNeverStalled": true,
+    "RestartWatermarkMatchesAuthoritative": true,
+    "RestartHydrationDurationMs": 2.6893,
+    "AllCommittedMutationsApplied": true,
+    "ExecutionTrace": [
+      {
+        "Step": "Tx1 Commit",
+        "AccountId": 1,
+        "SeqId": 1,
+        "Status": "Committed",
+        "Watermark": 1
+      },
+      {
+        "Step": "Tx2 Rollback",
+        "AccountId": 1,
+        "SeqId": 2,
+        "Status": "RolledBack",
+        "Watermark": 1
+      },
+      {
+        "Step": "Tx3 Commit",
+        "AccountId": 2,
+        "SeqId": 3,
+        "Status": "Committed",
+        "Watermark": 3
+      },
+      {
+        "Step": "5 Consecutive Raw Rollbacks",
+        "BurnedSequences": "4, 5, 6, 7, 8",
+        "Status": "RolledBack",
+        "Watermark": 3
+      },
+      {
+        "Step": "Tx9 Commit",
+        "AccountId": 3,
+        "SeqId": 9,
+        "Status": "Committed",
+        "Watermark": 9
+      }
+    ]
+  }
+}

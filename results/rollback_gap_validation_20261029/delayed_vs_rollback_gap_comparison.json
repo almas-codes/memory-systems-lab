@@ -1,0 +1,24 @@
+{
+  "DelayedCommittedEventVsRollbackGap": {
+    "FundamentalDifference": "A rollback gap never commits to PostgreSQL, so no data exists in outbox. A delayed committed event commits to PostgreSQL and exists in outbox, but has not completed in-memory projection.",
+    "DelayedEventBehavior": {
+      "WriterA_CommittedSequence": 1,
+      "WriterB_CommittedSequence": 2,
+      "WatermarkWhileWriterADelayed": 0,
+      "HighestPublishedWhileWriterADelayed": 2,
+      "InFlightCount": 1,
+      "WatermarkPreventedFromSkipping": true,
+      "Explanation": "ContiguousWatermarkTracker held watermark at 0 because seq 1 was still in-flight, preventing recovery checkpoints from skipping seq 1."
+    },
+    "CrashRecoveryConvergence": {
+      "ReplayedMutationsCount": 2,
+      "Account1_FinalInMemoryEligible": false,
+      "Account1_PostgreSqlState": "balance=50, active=false -\u003E Ineligible",
+      "Account1_MatchesPostgreSql": true,
+      "Account2_FinalInMemoryEligible": true,
+      "Account2_PostgreSqlState": "balance=250, active=true -\u003E Eligible",
+      "Account2_MatchesPostgreSql": true,
+      "DelayedEventIncorporatedWithoutLoss": true
+    }
+  }
+}
