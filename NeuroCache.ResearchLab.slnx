@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NeuroCache.Benchmarks/NeuroCache.Benchmarks.csproj" />
+    <Project Path="src/NeuroCache.Cli/NeuroCache.Cli.csproj" />
+    <Project Path="src/NeuroCache.Core/NeuroCache.Core.csproj" />
+    <Project Path="src/NeuroCache.EapResearch/NeuroCache.EapResearch.csproj" />
+    <Project Path="src/NeuroCache.Storage/NeuroCache.Storage.csproj" />
+    <Project Path="src/NeuroCache.Strategies/NeuroCache.Strategies.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NeuroCache.CorrectnessTests/NeuroCache.CorrectnessTests.csproj" />
+    <Project Path="tests/NeuroCache.EapResearch.Tests/NeuroCache.EapResearch.Tests.csproj" />
+    <Project Path="tests/NeuroCache.RecoveryTests/NeuroCache.RecoveryTests.csproj" />
+    <Project Path="tests/NeuroCache.ScaleTests/NeuroCache.ScaleTests.csproj" />
+    <Project Path="tests/NeuroCache.UnitTests/NeuroCache.UnitTests.csproj" />
+  </Folder>
+</Solution>

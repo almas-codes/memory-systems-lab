@@ -1,0 +1,15 @@
+{
+  "RecordCount": 100000000,
+  "Shape": 1,
+  "AveragePayloadBytes": 32,
+  "TotalBytesOnDisk": 11200000000,
+  "GenerationSeed": 42,
+  "SchemaVersion": 1,
+  "CreatedAtUtc": "2026-10-28T08:34:57.0746483+00:00",
+  "DataChecksum": 0,
+  "SegmentCount": 20,
+  "RecordsPerSegment": 5000000,
+  "DataDirectory": "./data",
+  "MinKey": 0,
+  "MaxKey": 99999999
+}

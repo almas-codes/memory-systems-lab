@@ -1,0 +1,28 @@
+# Build output
+bin/
+obj/
+TestResults/
+
+# IDE files
+.vs/
+*.user
+*.suo
+.idea/
+.vscode/
+
+# Large binary dataset files and memory-mapped stores
+data/*.dat
+data/*.idx
+data/capsules/
+data_smoke/
+*.dat
+*.idx
+*.bin
+
+# Keep dataset metadata and manifests
+!data/*.json
+!data/README.md
+
+# Local secrets and config
+*.local.json
+appsettings.Development.json

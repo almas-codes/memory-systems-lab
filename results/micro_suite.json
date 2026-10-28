@@ -1,0 +1,303 @@
+[
+  {
+    "StrategyName": "DirectFileBaseline",
+    "WorkloadName": "Micro-PureRecomputeVsSSD",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:06.9017579",
+      "ThroughputOpsPerSec": 2897.8124544183156,
+      "MinLatencyUs": 14.3,
+      "AvgLatencyUs": 344.6279650000006,
+      "P50LatencyUs": 331.9,
+      "P95LatencyUs": 744.7,
+      "P99LatencyUs": 1007.3,
+      "P999LatencyUs": 1744.1,
+      "MaxLatencyUs": 84247,
+      "AllocatedBytesPerOp": 818.4604,
+      "TotalAllocatedBytes": 16369208,
+      "Gen0Collections": 0,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 58875904
+    },
+    "Stats": {
+      "HitRate": 0.5
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4374851584,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118906867712,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:35:57.6001453+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:35:57.5995755+00:00"
+  },
+  {
+    "StrategyName": "MemoryMappedPageCache",
+    "WorkloadName": "Micro-PureRecomputeVsSSD",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:00.1226616",
+      "ThroughputOpsPerSec": 163050.2129435781,
+      "MinLatencyUs": 0.8,
+      "AvgLatencyUs": 6.028369999999987,
+      "P50LatencyUs": 5,
+      "P95LatencyUs": 14.1,
+      "P99LatencyUs": 20,
+      "P999LatencyUs": 52.2,
+      "MaxLatencyUs": 972.1,
+      "AllocatedBytesPerOp": 16.9832,
+      "TotalAllocatedBytes": 339664,
+      "Gen0Collections": 0,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 152469504
+    },
+    "Stats": {
+      "HitRate": 1
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4277116928,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118906867712,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:35:57.7764879+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:35:57.7760904+00:00"
+  },
+  {
+    "StrategyName": "SufficiencyFabric",
+    "WorkloadName": "Micro-PureRecomputeVsSSD",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:00.9023216",
+      "ThroughputOpsPerSec": 22165.046254018525,
+      "MinLatencyUs": 0.3,
+      "AvgLatencyUs": 44.92768000000003,
+      "P50LatencyUs": 40.5,
+      "P95LatencyUs": 82.8,
+      "P99LatencyUs": 110.7,
+      "P999LatencyUs": 225.8,
+      "MaxLatencyUs": 8211.4,
+      "AllocatedBytesPerOp": 920.8012,
+      "TotalAllocatedBytes": 18416024,
+      "Gen0Collections": 0,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 62873600
+    },
+    "Stats": {
+      "HitRate": 1
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4369686528,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118906867712,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:35:58.9392908+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:35:58.9390134+00:00"
+  },
+  {
+    "StrategyName": "NeuroCacheOmega",
+    "WorkloadName": "Micro-PureRecomputeVsSSD",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:01.3089348",
+      "ThroughputOpsPerSec": 15279.599870062282,
+      "MinLatencyUs": 0.4,
+      "AvgLatencyUs": 65.23435999999985,
+      "P50LatencyUs": 61.9,
+      "P95LatencyUs": 106.3,
+      "P99LatencyUs": 136.2,
+      "P999LatencyUs": 293.3,
+      "MaxLatencyUs": 5616.6,
+      "AllocatedBytesPerOp": 1031.174,
+      "TotalAllocatedBytes": 20623480,
+      "Gen0Collections": 0,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 68001792
+    },
+    "Stats": {
+      "HitRate": 1
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4371378176,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118905622528,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:36:00.3878131+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:36:00.3875362+00:00"
+  },
+  {
+    "StrategyName": "DirectFileBaseline",
+    "WorkloadName": "Micro-SingleReadCapsule",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:09.5863588",
+      "ThroughputOpsPerSec": 2086.2978756856046,
+      "MinLatencyUs": 10.5,
+      "AvgLatencyUs": 478.9543050000001,
+      "P50LatencyUs": 439,
+      "P95LatencyUs": 820.8,
+      "P99LatencyUs": 1242,
+      "P999LatencyUs": 50980.5,
+      "MaxLatencyUs": 75033.8,
+      "AllocatedBytesPerOp": 593.2772,
+      "TotalAllocatedBytes": 11865544,
+      "Gen0Collections": 0,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 65916928
+    },
+    "Stats": {
+      "HitRate": 1
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4642770944,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118905675776,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:36:10.5780269+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:36:10.5779927+00:00"
+  },
+  {
+    "StrategyName": "ProjectionCapsules",
+    "WorkloadName": "Micro-SingleReadCapsule",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:01.2581911",
+      "ThroughputOpsPerSec": 15895.836490975022,
+      "MinLatencyUs": 3.5,
+      "AvgLatencyUs": 62.73501000000032,
+      "P50LatencyUs": 58.6,
+      "P95LatencyUs": 102.7,
+      "P99LatencyUs": 133.1,
+      "P999LatencyUs": 291.2,
+      "MaxLatencyUs": 5359.5,
+      "AllocatedBytesPerOp": 842.4484,
+      "TotalAllocatedBytes": 16848968,
+      "Gen0Collections": 0,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 70275072
+    },
+    "Stats": {
+      "HitRate": 1
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4639367168,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118904442880,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:36:11.9354019+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:36:11.9350979+00:00"
+  },
+  {
+    "StrategyName": "NeuroCacheOmega",
+    "WorkloadName": "Micro-SingleReadCapsule",
+    "Concurrency": 1,
+    "RamBudgetMb": 256,
+    "Metrics": {
+      "TotalOperations": 20000,
+      "Elapsed": "00:00:01.2709483",
+      "ThroughputOpsPerSec": 15736.281326313589,
+      "MinLatencyUs": 0.3,
+      "AvgLatencyUs": 63.31857000000017,
+      "P50LatencyUs": 59.4,
+      "P95LatencyUs": 102.3,
+      "P99LatencyUs": 131.3,
+      "P999LatencyUs": 603.4,
+      "MaxLatencyUs": 10129.2,
+      "AllocatedBytesPerOp": 1127.244,
+      "TotalAllocatedBytes": 22544880,
+      "Gen0Collections": 1,
+      "Gen1Collections": 0,
+      "Gen2Collections": 0,
+      "PeakWorkingSetBytes": 71024640
+    },
+    "Stats": {
+      "HitRate": 1
+    },
+    "HostInfo": {
+      "OsDescription": "Microsoft Windows 10.0.26200",
+      "Architecture": "X64",
+      "DotNetVersion": "10.0.12",
+      "FrameworkDescription": ".NET 10.0.12",
+      "LogicalCores": 16,
+      "TotalRamBytes": 14870306816,
+      "FreeRamBytes": 4631638016,
+      "StorageDrive": "D:\\",
+      "StorageDriveType": "Fixed (NVMe SSD Intel detected)",
+      "StorageTotalBytes": 195149426688,
+      "StorageFreeBytes": 118903197696,
+      "IsServerGC": true,
+      "TimestampUtc": "2026-10-28T08:36:13.3157376+00:00"
+    },
+    "TimestampUtc": "2026-10-28T08:36:13.3157186+00:00"
+  }
+]
