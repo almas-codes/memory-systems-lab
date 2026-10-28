@@ -69,4 +69,60 @@ public class EapCoreTests
 
         await coord.DisposeAsync();
     }
+
+    [Fact]
+    public void EapBooleanBitmap_ConcurrentUpdates_SameWord_NoUpdatesLost()
+    {
+        // 64 accounts sharing the exact same 64-bit word (IDs 1 to 64)
+        long maxId = 64;
+        var bitmap = new EapBooleanBitmap(maxId);
+
+        // Run 64 concurrent tasks, each repeatedly toggling and finally setting their assigned bit
+        int iterations = 10_000;
+        Parallel.For(1, 65, id =>
+        {
+            for (int i = 0; i < iterations; i++)
+            {
+                bitmap.SetEligible(id, (i & 1) == 0);
+            }
+            // Deterministic final state: even IDs -> true, odd IDs -> false
+            bitmap.SetEligible(id, id % 2 == 0);
+        });
+
+        // Verify all 64 bits in the single 64-bit word
+        for (long id = 1; id <= 64; id++)
+        {
+            bool expected = (id % 2 == 0);
+            Assert.True(bitmap.IsEligible(id) == expected, $"Bit for ID {id} was lost or corrupted during concurrent updates in the same 64-bit word.");
+        }
+    }
+
+    [Fact]
+    public void EapPackedCategoryPlane_ConcurrentNibbles_SameByte_NoUpdatesLost()
+    {
+        // 100 accounts -> 50 shared bytes (2 accounts per byte)
+        long maxId = 100;
+        var plane = new EapPackedCategoryPlane(maxId);
+
+        int iterations = 10_000;
+        Parallel.For(1, 101, id =>
+        {
+            for (int i = 0; i < iterations; i++)
+            {
+                plane.SetAccount(id, (i % 15) * 13, (i & 1) == 0);
+            }
+            // Deterministic final state: balance = id * 1.5, active = true
+            int finalBalance = (int)(id * 1.5);
+            plane.SetAccount(id, finalBalance, true);
+        });
+
+        for (long id = 1; id <= 100; id++)
+        {
+            int expectedBalance = (int)(id * 1.5);
+            byte expectedCat = EapPackedCategoryPlane.BalanceToCategory(expectedBalance);
+            // Verify threshold matching expected category
+            int testThreshold = expectedCat * 13;
+            Assert.True(plane.EvaluateThreshold(id, testThreshold), $"Category for ID {id} was corrupted by adjacent nibble concurrent write.");
+        }
+    }
 }
