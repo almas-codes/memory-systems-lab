@@ -1,0 +1,48 @@
+{
+  "Table": "eap_audit_20261028.accounts_50m",
+  "HasExplicitPrimaryKeyConstraint": false,
+  "Constraints": [],
+  "IndexInventory": [
+    {
+      "IndexName": "idx_accounts_50m_covering",
+      "IsUnique": false,
+      "IsPrimaryKey": false,
+      "Pages": 192251,
+      "Tuples": 50000104,
+      "Bytes": 1574920192,
+      "Pretty": "1502 MB",
+      "Definition": "CREATE INDEX idx_accounts_50m_covering ON eap_audit_20261028.accounts_50m USING btree (id) INCLUDE (balance, active)"
+    },
+    {
+      "IndexName": "idx_accounts_50m_id",
+      "IsUnique": true,
+      "IsPrimaryKey": false,
+      "Pages": 137099,
+      "Tuples": 50000104,
+      "Bytes": 1123115008,
+      "Pretty": "1071 MB",
+      "Definition": "CREATE UNIQUE INDEX idx_accounts_50m_id ON eap_audit_20261028.accounts_50m USING btree (id)"
+    }
+  ],
+  "DetailedAnswers": {
+    "WhichIndexBacksPrimaryKeyConstraint": "None. The table has NO formal PRIMARY KEY constraint in pg_constraint. Both indexes are standalone CREATE INDEX objects.",
+    "IsIdxAccounts50mIdBackingOrAdditional": "idx_accounts_50m_id is an additional standalone UNIQUE B-tree index (indisunique=true, indisprimary=false).",
+    "IsIdxAccounts50mCoveringUniqueOrNonUnique": "idx_accounts_50m_covering is currently NON-UNIQUE (indisunique=false, indisprimary=false). It indexes (id) with INCLUDE (balance, active).",
+    "ExactIndexFootprints": {
+      "IdIndexBytes": 1123115008,
+      "IdIndexMB": 1123.12,
+      "CoveringIndexBytes": 1574920192,
+      "CoveringIndexMB": 1574.92,
+      "TotalIndexesBytes": 2698051584,
+      "TotalIndexesMB": 2698.051584,
+      "TableHeapBytes": 2610765824,
+      "TableHeapMB": 2610.765824,
+      "TotalRelationBytes": 5308817408,
+      "TotalRelationMB": 5308.817408
+    },
+    "IndexConsolidationFeasibility": {
+      "Feasible": true,
+      "SafeProposal": "PostgreSQL B-trees support UNIQUE indexes with INCLUDE payload columns. By defining \u0060CREATE UNIQUE INDEX idx_accounts_50m_covering ON accounts_50m (id) INCLUDE (balance, active);\u0060 and adding \u0060ALTER TABLE accounts_50m ADD CONSTRAINT pk_accounts_50m PRIMARY KEY USING INDEX idx_accounts_50m_covering;\u0060, a single index simultaneously satisfies: 1) Primary key uniqueness on id, 2) Foreign key references, and 3) Index-only scans covering balance and active. This eliminates idx_accounts_50m_id completely, freeing 1,123.12 MB (41.6% of index storage) with zero query degradation."
+    }
+  }
+}

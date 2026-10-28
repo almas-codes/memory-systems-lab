@@ -1069,4 +1069,118 @@ public class EapCoreTests
 
         await coord.DisposeAsync();
     }
+
+    [Fact]
+    public async Task SequenceGapAnomaly_ConcurrentExternalTransactions_ProvesDroppedMutation()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        string testTable = "eap_audit_20261028.test_gap_proof_accounts";
+        string testOutbox = "eap_audit_20261028.test_gap_proof_outbox";
+
+        await using (var setupConn = new Npgsql.NpgsqlConnection(connStr))
+        {
+            await setupConn.OpenAsync();
+            await using var cmd = new NpgsqlCommand($@"
+                CREATE SCHEMA IF NOT EXISTS eap_audit_20261028;
+                DROP TABLE IF EXISTS {testTable} CASCADE;
+                DROP TABLE IF EXISTS {testOutbox};
+                CREATE TABLE {testTable} (id BIGINT PRIMARY KEY, balance INT NOT NULL, active BOOLEAN NOT NULL, version BIGINT NOT NULL DEFAULT 1);
+                CREATE TABLE {testOutbox} (seq_id BIGSERIAL PRIMARY KEY, account_id BIGINT NOT NULL, balance INT NOT NULL, active BOOLEAN NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp());
+                INSERT INTO {testTable} (id, balance, active) VALUES (1, 50, true), (2, 50, true);
+
+                CREATE OR REPLACE FUNCTION eap_audit_20261028.fn_test_gap_trg()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    INSERT INTO {testOutbox} (account_id, balance, active) VALUES (NEW.id, NEW.balance, NEW.active);
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+
+                DROP TRIGGER IF EXISTS trg_test_gap ON {testTable};
+                CREATE TRIGGER trg_test_gap
+                AFTER INSERT OR UPDATE ON {testTable}
+                FOR EACH ROW EXECUTE FUNCTION eap_audit_20261028.fn_test_gap_trg();
+            ", setupConn);
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        var coord = new EapCoordinator(10, connStr, defaultThreshold: 100, tableName: testTable, mutationLogTable: testOutbox);
+        await coord.HydrateSynchronizedFromPostgreSqlAsync();
+
+        // 1. Session 1 begins and updates Account 1 (allocating seq_id = 1), stays uncommitted
+        await using var conn1 = new Npgsql.NpgsqlConnection(connStr);
+        await using var conn2 = new Npgsql.NpgsqlConnection(connStr);
+        await conn1.OpenAsync();
+        await conn2.OpenAsync();
+
+        await using var tx1 = await conn1.BeginTransactionAsync();
+        await using (var cmd1 = new NpgsqlCommand($"UPDATE {testTable} SET balance = 180 WHERE id = 1;", conn1, tx1))
+        {
+            await cmd1.ExecuteNonQueryAsync();
+        }
+
+        // 2. Session 2 begins and updates Account 2 (allocating seq_id = 2), commits immediately
+        await using (var tx2 = await conn2.BeginTransactionAsync())
+        await using (var cmd2 = new NpgsqlCommand($"UPDATE {testTable} SET balance = 180 WHERE id = 2;", conn2, tx2))
+        {
+            await cmd2.ExecuteNonQueryAsync();
+            await tx2.CommitAsync();
+        }
+
+        // 3. Outbox poller runs while tx1 is uncommitted: sees seq_id = 2, advances watermark
+        int poll1Replayed = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(1, poll1Replayed);
+        Assert.Equal(2, coord.LastAppliedMutationSeq);
+
+        // 4. Session 1 now commits seq_id = 1
+        await tx1.CommitAsync();
+
+        // 5. Outbox poller runs again: queries WHERE seq_id > 2
+        int poll2Replayed = await coord.ReconcilePendingMutationsAsync();
+        Assert.Equal(0, poll2Replayed); // Mutation 1 was permanently SKIPPED!
+
+        // Account 2 is synchronized; Account 1 was dropped!
+        Assert.True(coord.QueryEligible(2), "Account 2 should be eligible in EAP.");
+        Assert.False(coord.QueryEligible(1), "Account 1 must remain ineligible in EAP because the Sequence Gap Anomaly skipped seq_id 1!");
+
+        await coord.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Catalog_Accounts50m_IndexRedundancy_Verified()
+    {
+        string connStr = PostgreSqlPreflight.GetConnectionString();
+        await using var conn = new Npgsql.NpgsqlConnection(connStr);
+        await conn.OpenAsync();
+
+        // Check constraints: no explicit PRIMARY KEY constraint
+        await using (var cmd = new NpgsqlCommand("SELECT COUNT(*) FROM pg_constraint WHERE conrelid = 'eap_audit_20261028.accounts_50m'::regclass;", conn))
+        {
+            long cnt = (long)(await cmd.ExecuteScalarAsync())!;
+            Assert.Equal(0, cnt);
+        }
+
+        // Check indexes: idx_accounts_50m_id (unique) and idx_accounts_50m_covering (non-unique)
+        bool hasIdIndex = false, idIsUnique = false;
+        bool hasCoveringIndex = false, coveringIsUnique = false;
+
+        await using (var cmd = new NpgsqlCommand(@"
+            SELECT c.relname, i.indisunique 
+            FROM pg_index i 
+            JOIN pg_class c ON c.oid = i.indexrelid 
+            WHERE i.indrelid = 'eap_audit_20261028.accounts_50m'::regclass;", conn))
+        await using (var r = await cmd.ExecuteReaderAsync())
+        {
+            while (await r.ReadAsync())
+            {
+                string name = r.GetString(0);
+                bool unique = r.GetBoolean(1);
+                if (name == "idx_accounts_50m_id") { hasIdIndex = true; idIsUnique = unique; }
+                if (name == "idx_accounts_50m_covering") { hasCoveringIndex = true; coveringIsUnique = unique; }
+            }
+        }
+
+        Assert.True(hasIdIndex && idIsUnique);
+        Assert.True(hasCoveringIndex && !coveringIsUnique);
+    }
 }

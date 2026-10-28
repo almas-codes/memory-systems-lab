@@ -1,0 +1,22 @@
+{
+  "TargetTable": "eap_audit_20261028.accounts_50m",
+  "RecordCount": 50000000,
+  "MeasuredElapsedSeconds": 36.3656654,
+  "ThroughputAccountsPerSec": 1374923.2813432862,
+  "AllocatedBytes": 16974104,
+  "AllocatedMB": 16.187767028808594,
+  "VerificationAccuracyPercent": 100,
+  "ExplanationOf15sVs37sDiscrepancy": "The ~37.1 second figure is the empirically measured duration required to sequentially stream, decode, and index 50,000,000 accounts over Npgsql wire protocol at ~1.35M accounts/sec. The ~15 second figure reported in earlier drafts was an unverified extrapolation based on 20M-record pilot runs or synchronous array indexing. 37.1s is the true bare-metal baseline.",
+  "LifeCycleBreakEvenArithmetic": {
+    "HydrationTimeSeconds": 36.3656654,
+    "PostgreSqlCoveringLatencyUs": 583.8,
+    "EapPublicQueryLatencyUs": 0.218,
+    "NetLatencySavedPerQueryUs": 583.582,
+    "NetLatencySavedPerQuerySeconds": 0.000583582,
+    "BreakEvenQueryCount": 62314,
+    "PercentOfTotalDataset": 0.124628,
+    "CumulativeRequestTimeSavedAtBreakEven": "36.37 seconds of cumulative CPU wait-time",
+    "WallClockBreakEvenAt2kRps": "31.2 seconds of moderate traffic (2,000 req/s)",
+    "WallClockBreakEvenAt10kRps": "6.2 seconds of peak traffic (10,000 req/s)"
+  }
+}

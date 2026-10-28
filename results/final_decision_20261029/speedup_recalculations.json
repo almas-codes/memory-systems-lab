@@ -1,0 +1,67 @@
+[
+  {
+    "Concurrency": 1,
+    "PostgreSqlThroughput": 1607.598258030525,
+    "PostgreSqlP50Us": 632.5,
+    "EapAsyncThroughput": 8520933.223982569,
+    "EapAsyncP50Us": 0.1173874889752711,
+    "EapSyncThroughput": 21390958.02848437,
+    "EapSyncP50Us": 0.04677101374037592,
+    "MatchedThroughputSpeedup_AsyncVsPg": 5300.412078339521,
+    "MatchedThroughputSpeedup_SyncVsPg": 13306.15899938242,
+    "MatchedLatencySpeedup_PgVsAsync": 5388.138084572563,
+    "MatchedLatencySpeedup_PgVsSync": 13523.333137720361
+  },
+  {
+    "Concurrency": 2,
+    "PostgreSqlThroughput": 3272.8946788833855,
+    "PostgreSqlP50Us": 568.4399999999999,
+    "EapAsyncThroughput": 16108603.496081565,
+    "EapAsyncP50Us": 0.062089246786818375,
+    "EapSyncThroughput": 38769495.68523311,
+    "EapSyncP50Us": 0.025808680312271258,
+    "MatchedThroughputSpeedup_AsyncVsPg": 4921.82153003999,
+    "MatchedThroughputSpeedup_SyncVsPg": 11845.628866511559,
+    "MatchedLatencySpeedup_PgVsAsync": 9155.208500945779,
+    "MatchedLatencySpeedup_PgVsSync": 22025.14786196657
+  },
+  {
+    "Concurrency": 4,
+    "PostgreSqlThroughput": 6725.6128737339,
+    "PostgreSqlP50Us": 550.3599999999999,
+    "EapAsyncThroughput": 30898399.344966598,
+    "EapAsyncP50Us": 0.03236753867611077,
+    "EapSyncThroughput": 72389857.91445033,
+    "EapSyncP50Us": 0.01382034590138945,
+    "MatchedThroughputSpeedup_AsyncVsPg": 4594.138842816348,
+    "MatchedThroughputSpeedup_SyncVsPg": 10763.310240046749,
+    "MatchedLatencySpeedup_PgVsAsync": 17003.45539113233,
+    "MatchedLatencySpeedup_PgVsSync": 39822.44756585062
+  },
+  {
+    "Concurrency": 8,
+    "PostgreSqlThroughput": 12859.967328251758,
+    "PostgreSqlP50Us": 557.58,
+    "EapAsyncThroughput": 60450872.9539426,
+    "EapAsyncP50Us": 0.016544764234521964,
+    "EapSyncThroughput": 137831985.50271857,
+    "EapSyncP50Us": 0.007255988642602354,
+    "MatchedThroughputSpeedup_AsyncVsPg": 4700.701907783196,
+    "MatchedThroughputSpeedup_SyncVsPg": 10717.911016765862,
+    "MatchedLatencySpeedup_PgVsAsync": 33701.296198380696,
+    "MatchedLatencySpeedup_PgVsSync": 76844.111459362
+  },
+  {
+    "Concurrency": 16,
+    "PostgreSqlThroughput": 18174.923369424232,
+    "PostgreSqlP50Us": 737.5999999999999,
+    "EapAsyncThroughput": 94952961.95504406,
+    "EapAsyncP50Us": 0.010531576058701633,
+    "EapSyncThroughput": 199519111.606638,
+    "EapSyncP50Us": 0.005014238107016877,
+    "MatchedThroughputSpeedup_AsyncVsPg": 5224.3940744632755,
+    "MatchedThroughputSpeedup_SyncVsPg": 10977.714048703503,
+    "MatchedLatencySpeedup_PgVsAsync": 70037.00071942828,
+    "MatchedLatencySpeedup_PgVsSync": 147101.11172578932
+  }
+]

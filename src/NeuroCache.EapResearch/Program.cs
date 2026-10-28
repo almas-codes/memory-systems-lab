@@ -53,6 +53,12 @@ public class Program
                     await auditor.RunFullAuditAsync();
                     return 0;
 
+                case "matched-decision":
+                case "final-decision":
+                    var decisionRunner = new FinalMatchedDecisionRunner();
+                    await decisionRunner.RunAllAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();

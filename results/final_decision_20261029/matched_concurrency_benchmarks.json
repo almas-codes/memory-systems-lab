@@ -1,0 +1,222 @@
+[
+  {
+    "PathName": "RawBitmap",
+    "Concurrency": 1,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 42874011.04335203,
+    "MeanP50LatencyUs": 0.023329694221628148,
+    "MeanP95LatencyUs": 0.034994541332442224,
+    "MeanP99LatencyUs": 0.05832423555407037,
+    "MeanCpuUtilizationPercent": 6.3429681131435105,
+    "TotalOperationsMeasured": 1072659000
+  },
+  {
+    "PathName": "RawBitmap",
+    "Concurrency": 2,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 78196033.70992741,
+    "MeanP50LatencyUs": 0.01279029290132051,
+    "MeanP95LatencyUs": 0.01918543935198076,
+    "MeanP99LatencyUs": 0.031975732253301276,
+    "MeanCpuUtilizationPercent": 12.33596497143677,
+    "TotalOperationsMeasured": 1955521000
+  },
+  {
+    "PathName": "RawBitmap",
+    "Concurrency": 4,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 135765439.84756553,
+    "MeanP50LatencyUs": 0.007368661154127512,
+    "MeanP95LatencyUs": 0.011052991731191267,
+    "MeanP99LatencyUs": 0.01842165288531878,
+    "MeanCpuUtilizationPercent": 24.566831016365295,
+    "TotalOperationsMeasured": 3394619000
+  },
+  {
+    "PathName": "RawBitmap",
+    "Concurrency": 8,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 246744396.83373728,
+    "MeanP50LatencyUs": 0.004055058649818471,
+    "MeanP95LatencyUs": 0.006082587974727707,
+    "MeanP99LatencyUs": 0.010137646624546177,
+    "MeanCpuUtilizationPercent": 49.397841182915826,
+    "TotalOperationsMeasured": 6169177000
+  },
+  {
+    "PathName": "RawBitmap",
+    "Concurrency": 16,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 321749525.4528417,
+    "MeanP50LatencyUs": 0.003108156896239175,
+    "MeanP95LatencyUs": 0.004662235344358762,
+    "MeanP99LatencyUs": 0.007770392240597937,
+    "MeanCpuUtilizationPercent": 86.09019815329586,
+    "TotalOperationsMeasured": 8044800000
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "Concurrency": 1,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 21390958.02848437,
+    "MeanP50LatencyUs": 0.04677101374037592,
+    "MeanP95LatencyUs": 0.07015652061056388,
+    "MeanP99LatencyUs": 0.1169275343509398,
+    "MeanCpuUtilizationPercent": 6.118776831967101,
+    "TotalOperationsMeasured": 534977000
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "Concurrency": 2,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 38769495.68523311,
+    "MeanP50LatencyUs": 0.025808680312271258,
+    "MeanP95LatencyUs": 0.03871302046840689,
+    "MeanP99LatencyUs": 0.06452170078067815,
+    "MeanCpuUtilizationPercent": 12.275765263630971,
+    "TotalOperationsMeasured": 969674000
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "Concurrency": 4,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 72389857.91445033,
+    "MeanP50LatencyUs": 0.01382034590138945,
+    "MeanP95LatencyUs": 0.020730518852084177,
+    "MeanP99LatencyUs": 0.034550864753473624,
+    "MeanCpuUtilizationPercent": 24.653820321868846,
+    "TotalOperationsMeasured": 1809923000
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "Concurrency": 8,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 137831985.50271857,
+    "MeanP50LatencyUs": 0.007255988642602354,
+    "MeanP95LatencyUs": 0.01088398296390353,
+    "MeanP99LatencyUs": 0.018139971606505885,
+    "MeanCpuUtilizationPercent": 49.4324968435548,
+    "TotalOperationsMeasured": 3446150000
+  },
+  {
+    "PathName": "PublicEapSynchronous",
+    "Concurrency": 16,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 199519111.606638,
+    "MeanP50LatencyUs": 0.005014238107016877,
+    "MeanP95LatencyUs": 0.007521357160525316,
+    "MeanP99LatencyUs": 0.01253559526754219,
+    "MeanCpuUtilizationPercent": 84.88770554026209,
+    "TotalOperationsMeasured": 4988609000
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "Concurrency": 1,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 8520933.223982569,
+    "MeanP50LatencyUs": 0.1173874889752711,
+    "MeanP95LatencyUs": 0.17608123346290663,
+    "MeanP99LatencyUs": 0.29346872243817773,
+    "MeanCpuUtilizationPercent": 6.143696920796544,
+    "TotalOperationsMeasured": 213186000
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "Concurrency": 2,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 16108603.496081565,
+    "MeanP50LatencyUs": 0.062089246786818375,
+    "MeanP95LatencyUs": 0.09313387018022756,
+    "MeanP99LatencyUs": 0.15522311696704594,
+    "MeanCpuUtilizationPercent": 12.263185097481006,
+    "TotalOperationsMeasured": 402922000
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "Concurrency": 4,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 30898399.344966598,
+    "MeanP50LatencyUs": 0.03236753867611077,
+    "MeanP95LatencyUs": 0.04855130801416616,
+    "MeanP99LatencyUs": 0.08091884669027694,
+    "MeanCpuUtilizationPercent": 24.62596420256019,
+    "TotalOperationsMeasured": 772552000
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "Concurrency": 8,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 60450872.9539426,
+    "MeanP50LatencyUs": 0.016544764234521964,
+    "MeanP95LatencyUs": 0.024817146351782945,
+    "MeanP99LatencyUs": 0.04136191058630491,
+    "MeanCpuUtilizationPercent": 49.31011711685713,
+    "TotalOperationsMeasured": 1511464000
+  },
+  {
+    "PathName": "PublicEapAsyncValueTask",
+    "Concurrency": 16,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 94952961.95504406,
+    "MeanP50LatencyUs": 0.010531576058701633,
+    "MeanP95LatencyUs": 0.015797364088052445,
+    "MeanP99LatencyUs": 0.026328940146754083,
+    "MeanCpuUtilizationPercent": 86.41500242430463,
+    "TotalOperationsMeasured": 2374120000
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "Concurrency": 1,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 1607.598258030525,
+    "MeanP50LatencyUs": 632.5,
+    "MeanP95LatencyUs": 823.18,
+    "MeanP99LatencyUs": 1039.8400000000001,
+    "MeanCpuUtilizationPercent": 4.0500291498001,
+    "TotalOperationsMeasured": 12500
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "Concurrency": 2,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 3272.8946788833855,
+    "MeanP50LatencyUs": 568.4399999999999,
+    "MeanP95LatencyUs": 764.1800000000001,
+    "MeanP99LatencyUs": 987.28,
+    "MeanCpuUtilizationPercent": 6.90583762356957,
+    "TotalOperationsMeasured": 25000
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "Concurrency": 4,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 6725.6128737339,
+    "MeanP50LatencyUs": 550.3599999999999,
+    "MeanP95LatencyUs": 747.46,
+    "MeanP99LatencyUs": 998.1200000000001,
+    "MeanCpuUtilizationPercent": 11.922411784557152,
+    "TotalOperationsMeasured": 50000
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "Concurrency": 8,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 12859.967328251758,
+    "MeanP50LatencyUs": 557.58,
+    "MeanP95LatencyUs": 746.26,
+    "MeanP99LatencyUs": 1211.56,
+    "MeanCpuUtilizationPercent": 19.217105596904354,
+    "TotalOperationsMeasured": 100000
+  },
+  {
+    "PathName": "PostgreSqlCovering",
+    "Concurrency": 16,
+    "Repetitions": 5,
+    "MeanThroughputOpsSec": 18174.923369424232,
+    "MeanP50LatencyUs": 737.5999999999999,
+    "MeanP95LatencyUs": 1413.52,
+    "MeanP99LatencyUs": 2623.2,
+    "MeanCpuUtilizationPercent": 19.70911743889169,
+    "TotalOperationsMeasured": 200000
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "Experiment": "Outbox Sequence Gap Anomaly under Concurrent External Transactions",
+  "Session1Action": "UPDATE Account 1 -\u003E allocated seq_id=1, stayed uncommitted",
+  "Session2Action": "UPDATE Account 2 -\u003E allocated seq_id=2, committed immediately",
+  "Poll1Result": "Replayed 1 rows, Watermark advanced to 2",
+  "Session1Commit": "Committed seq_id=1 after poll 1",
+  "Poll2Result": "Replayed 0 rows, Watermark remained at 2",
+  "Account1StateInPostgreSql": "balance=180, active=true (Ground Truth: Eligible)",
+  "Account1StateInEapMemory": "Ineligible (LOST / SKIPPED MUTATION)",
+  "Account2StateInEapMemory": "Eligible",
+  "AnomalyConfirmed": true,
+  "OperationalConclusion": "This confirms experimentally that a scalar sequence watermark (WHERE seq_id \u003E @lastSeq) silently and permanently drops committed mutations whenever concurrent external transactions commit out of sequence order.",
+  "ConsistencyPolicyDecision": {
+    "StrictCoordinatorMode": {
+      "Policy": "All mutating traffic MUST route through EapCoordinator.UpdateAccountAsync under the global advisory lock.",
+      "Enforcement": "REVOKE INSERT, UPDATE, DELETE ON accounts FROM PUBLIC, application_role; GRANT to coordinator_role ONLY.",
+      "Guarantee": "Strict serial commit ordering, zero sequence gaps, zero stale reads on coordinator path.",
+      "Limitation": "Write throughput capped at ~587 writes/second."
+    },
+    "EventualExternalMode": {
+      "Policy": "If external SQL writes must be permitted, the outbox poller CANNOT use a simple scalar watermark.",
+      "RequiredFix": "Must deploy PostgreSQL Logical Replication (pgoutput WAL decoding) or a sliding confirmation window that only advances across contiguous committed sequence numbers."
+    }
+  }
+}
