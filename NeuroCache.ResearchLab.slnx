@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/research/">
+    <Project Path="research/NeuroCache.ResearchLab/NeuroCache.ResearchLab.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/NeuroCache.Benchmarks/NeuroCache.Benchmarks.csproj" />
     <Project Path="src/NeuroCache.Cli/NeuroCache.Cli.csproj" />
