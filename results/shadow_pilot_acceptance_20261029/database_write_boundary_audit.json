@@ -1,0 +1,28 @@
+{
+  "CurrentApplicationRoleAudit": {
+    "RoleName": "postgres",
+    "IsSuperuser": true,
+    "CanLogin": true,
+    "TableOwner": "postgres",
+    "DatabaseWriteBoundaryStatus": "NOT_ENFORCED_AGAINST_CURRENT_ROLE",
+    "Explanation": "The application connection string currently connects as \u0027postgres\u0027, which is a PostgreSQL superuser. Superusers bypass all table privileges, GRANT/REVOKE permissions, and row-level security. The role can insert, update, delete, disable triggers, and modify outbox tables directly outside the coordinator."
+  },
+  "PostgreSqlPermissionBoundaryProof": {
+    "TestRoleCreated": "neurocache_boundary_audit_reader",
+    "TestTableCreated": "eap_audit_20261028.test_write_boundary_audit_accounts",
+    "SelectPrivilegeGranted": true,
+    "SelectOperationPassed": true,
+    "WritePrivilegesRevoked": "REVOKE INSERT, UPDATE, DELETE",
+    "WriteOperationBlocked": true,
+    "PostgreSqlErrorCode": "42501",
+    "PostgreSqlErrorMeaning": "42501 (insufficient_privilege / permission_denied)",
+    "BoundaryCapabilityConfirmed": true,
+    "Explanation": "PostgreSQL\u0027s discretionary access control successfully blocks unauthorized writes when applied to a non-superuser role."
+  },
+  "ProductionRemediationRecommendation": {
+    "Step1": "Create dedicated non-superuser role: \u0060CREATE ROLE neurocache_app WITH LOGIN PASSWORD \u0027...\u0027;\u0060",
+    "Step2": "Grant SELECT only on account tables: \u0060GRANT SELECT ON eap_audit_20261028.accounts_50m TO neurocache_app;\u0060",
+    "Step3": "Revoke write permissions: \u0060REVOKE INSERT, UPDATE, DELETE ON eap_audit_20261028.accounts_50m FROM neurocache_app;\u0060",
+    "Step4": "Route mutations strictly through a security-definer stored procedure or separate coordinator writer role (\u0060neurocache_coordinator_writer\u0060) that atomically commits the table update and outbox insertion."
+  }
+}

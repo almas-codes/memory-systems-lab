@@ -77,6 +77,12 @@ public class Program
                     await rollbackRunner.RunAllAsync();
                     return 0;
 
+                case "shadow-acceptance":
+                case "pilot-acceptance":
+                    var acceptanceRunner = new ShadowPilotAcceptanceRunner();
+                    await acceptanceRunner.RunAllAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();

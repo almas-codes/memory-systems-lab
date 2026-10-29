@@ -1,0 +1,40 @@
+{
+  "InvestigationTarget": "Reconcile the 799 matches and 1 mismatch observed in results/rollback_gap_validation_20261029/shadow_mode_contract_verification.json",
+  "ForensicFindings": {
+    "AccountId": 1,
+    "QueryPredicate": "balance \u003E= 500 AND active",
+    "PostgreSqlAuthoritativeAnswer": false,
+    "PostgreSqlTableRecordState": {
+      "Table": "eap_audit_20261028.test_shadow_stress_accounts",
+      "InitialSeed": "SELECT i, (i * 20)::int, (i % 2 = 0) FROM generate_series(1, 500) AS i",
+      "Account1Balance": 20,
+      "Account1Active": false,
+      "Account1Version": 1,
+      "EvaluationResult": "20 \u003E= 500 AND false -\u003E FALSE"
+    },
+    "EapAnswerAtComparison": true,
+    "EapProjectionState": {
+      "HydratedStateBeforeLag": false,
+      "OutboxReplayMutation": "Outbox sequence 50 had payload: account_id=1, balance=1000, active=true",
+      "AppliedStateAfterOutboxReplay": true,
+      "EvaluationResult": "1000 \u003E= 500 AND true -\u003E TRUE"
+    },
+    "WatermarkAtComparison": 50,
+    "HighestPublishedSeq": 50,
+    "OutboxLagAtComparison": 0,
+    "IsHealthyState": true,
+    "CircuitBreakerStateAtComparison": "Closed (manually reset after outbox catchup)"
+  },
+  "RootCauseAnalysis": {
+    "Classification": "TestHarnessDesynchronizationDefect",
+    "WasDeliberatelyInjected": true,
+    "Mechanism": "In Phase 2 of RunShadowModeContractStressTestAsync(), outbox lag was simulated by executing raw SQL: \u0060INSERT INTO testOutbox (account_id, balance, active) VALUES (1, 1000, true);\u0060 50 times WITHOUT executing a corresponding \u0060UPDATE testAccounts SET balance = 1000, active = true WHERE id = 1;\u0060. This created an artificial desynchronization between PostgreSQL\u0027s base table and PostgreSQL\u0027s outbox.",
+    "Manifestation": "When outbox recovery ran in Phase 4, ReconcilePendingMutationsAsync faithfully projected the outbox payload (balance=1000, active=true) into EAP bitmap. However, PostgreSQL\u0027s base table remained at balance=20, active=false. In Phase 5, querying Account 1 evaluated PG base table (false) vs EAP projection (true), producing exactly 1 mismatch.",
+    "TestHarnessValidation": "The shadow pilot counter recorded the mismatch exactly as expected (1 mismatch, 799 matches). The mismatch was not an engine defect or concurrency race, but an uncoordinated test fixture artifact."
+  },
+  "ArchitecturalPolicyDecision": {
+    "ProductionPolicy": "StrictMismatchPolicy = true",
+    "Enforcement": "In production shadow pilot, any single unclassified mismatch immediately trips the circuit breaker to Open, isolating shadow execution and preventing silent divergence. Mismatches must never be ignored or buried in aggregate percentages.",
+    "HarnessCorrection": "All future outbox lag benchmarks must update the base table and outbox within the same PostgreSQL transaction, or defer in-memory publication rather than corrupting the database state."
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "ExpandedShadowMatrixExecution": {
+    "TargetDataset": "eap_audit_20261028.accounts_50m",
+    "TotalRecordsInDataset": 50000000,
+    "TotalAuthoritativePostgreSqlDecisions": 105500,
+    "TotalShadowComparisonsEvaluated": 103500,
+    "ExactMatches": 103500,
+    "UnexplainedMismatches": 0,
+    "MatchFidelityPercentage": 100,
+    "SkippedShadowQueries": 2000,
+    "SkippedReasons": "2,000 queries bypassed shadow while circuit breaker was Open during outbox lag injection",
+    "TotalWritesExecuted": 2100,
+    "CircuitBreakerTransitions": {
+      "TripsRecorded": 1,
+      "TrippedOnLagExceedingThreshold": true,
+      "MeasuredLagDuringTrip": 600,
+      "OutboxReplayDurationMs": 4.6358,
+      "MutationsReplayed": 600,
+      "PostRecoveryLag": 0,
+      "ResetSucceeded": true
+    },
+    "LatencyPercentiles": {
+      "PostgreSql": {
+        "Unit": "microseconds",
+        "MeanUs": 837.46,
+        "P50Us": 986.1,
+        "P95Us": 1281.9,
+        "P99Us": 1681.8
+      },
+      "EapShadow": {
+        "Unit": "nanoseconds",
+        "MeanNs": 543.54,
+        "P50Ns": 400,
+        "P95Ns": 1300,
+        "P99Ns": 2500,
+        "SpeedupP50Factor": 2465.2
+      }
+    },
+    "MemoryFootprint": {
+      "BooleanPlaneMbDecimal": 6.25,
+      "CategoryPlaneMbDecimal": 31.25,
+      "SequenceMetadataEntriesSteadyState": 0,
+      "SequenceMetadataBytes": 0,
+      "TotalPrunedEntries": 121
+    },
+    "WorkloadSummary": {
+      "Workload1_ReadOnly50k": {
+        "Queries": 50000,
+        "ElapsedMs": 48371
+      },
+      "Workload2_OnePercentWrites25k": {
+        "Queries": 25000,
+        "Writes": 250,
+        "ElapsedMs": 19795
+      },
+      "Workload3_FivePercentWrites25k": {
+        "Queries": 25000,
+        "Writes": 1250,
+        "ElapsedMs": 21004
+      },
+      "Workload4_LagAndRecovery": {
+        "LagMutations": 600,
+        "BypassedQueries": 2000,
+        "RecoveryMs": 4.6358
+      },
+      "Workload5_PostRecovery5k": {
+        "Queries": 5000,
+        "Fidelity": "100%"
+      }
+    }
+  }
+}

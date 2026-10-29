@@ -1,0 +1,39 @@
+{
+  "CircuitBreakerContractAudit": {
+    "TripOnAnyMismatchSupported": true,
+    "ResetBlockedWhenUnhealthy": true,
+    "ResetBlockedWhenLagging": true,
+    "ResetSucceedsAfterRecovery": true,
+    "PostgreSqlAuthoritativeAlwaysGuaranteed": true,
+    "Transitions": [
+      {
+        "State": "Closed",
+        "Reason": "Initial hydration complete"
+      },
+      {
+        "State": "Open",
+        "Reason": "Strict single mismatch detected on Account 1"
+      },
+      {
+        "State": "Open",
+        "ResetAttempt": false,
+        "RejectionReason": "Cannot reset circuit breaker: EAP coordinator projection is in an unhealthy state."
+      },
+      {
+        "State": "Open",
+        "ResetAttempt": false,
+        "RejectionReason": "Cannot reset circuit breaker: Outbox replication lag (8) exceeds safety threshold (5)."
+      },
+      {
+        "State": "Closed",
+        "ResetAttempt": true,
+        "Reason": "Circuit breaker successfully reset to Closed."
+      },
+      {
+        "KillSwitchEngaged": true,
+        "AuthoritativeServed": true,
+        "ShadowBypassed": true
+      }
+    ]
+  }
+}
