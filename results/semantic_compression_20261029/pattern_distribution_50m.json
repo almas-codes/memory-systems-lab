@@ -1,0 +1,50 @@
+[
+  {
+    "Pattern": 128,
+    "Frequency": 22500241,
+    "Percentage": 45.000482000000005,
+    "SemanticDescription": "Active, balance \u003C 100 (Micro Tier)"
+  },
+  {
+    "Pattern": 193,
+    "Frequency": 22500137,
+    "Percentage": 45.000274000000005,
+    "SemanticDescription": "Active, 100 \u003C= balance \u003C 250 (Basic Tier)"
+  },
+  {
+    "Pattern": 0,
+    "Frequency": 2499756,
+    "Percentage": 4.999511999999999,
+    "SemanticDescription": "Inactive, balance \u003C 100"
+  },
+  {
+    "Pattern": 1,
+    "Frequency": 2499753,
+    "Percentage": 4.999506,
+    "SemanticDescription": "Inactive, 100 \u003C= balance \u003C 500"
+  },
+  {
+    "Pattern": 251,
+    "Frequency": 100,
+    "Percentage": 0.00019999999999999998,
+    "SemanticDescription": "Active, 750 \u003C= balance \u003C 900 (Upper Tier)"
+  },
+  {
+    "Pattern": 243,
+    "Frequency": 5,
+    "Percentage": 9.999999999999999E-06,
+    "SemanticDescription": "Active, 500 \u003C= balance \u003C 750 (Mid Tier)"
+  },
+  {
+    "Pattern": 255,
+    "Frequency": 5,
+    "Percentage": 9.999999999999999E-06,
+    "SemanticDescription": "Active, balance \u003E= 900 (High Tier)"
+  },
+  {
+    "Pattern": 3,
+    "Frequency": 3,
+    "Percentage": 5.999999999999999E-06,
+    "SemanticDescription": "Inactive, balance \u003E= 500"
+  }
+]

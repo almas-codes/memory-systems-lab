@@ -1,0 +1,30 @@
+[
+  {
+    "Candidate": "Candidate A (8 Independent Bitmaps)",
+    "Bytes": 50000000,
+    "DecimalMb": 50,
+    "BinaryMib": 47.6837158203125,
+    "Notes": "8 separate 1-bit boolean bitmaps (6.25 MB each)"
+  },
+  {
+    "Candidate": "Candidate B (Packed 8-bit Byte Pattern)",
+    "Bytes": 50000001,
+    "DecimalMb": 50.000001,
+    "BinaryMib": 47.683716773986816,
+    "Notes": "1 contiguous byte per account"
+  },
+  {
+    "Candidate": "Candidate C (Semantic Answer-Class Plane)",
+    "Bytes": 25000273,
+    "DecimalMb": 25.000273,
+    "BinaryMib": 23.84211826324463,
+    "Notes": "4-bit nibbles (2 accounts/byte, 25.0 MB) \u002B 272-byte dictionary"
+  },
+  {
+    "Candidate": "Candidate D (Reference Single Bitmap)",
+    "Bytes": 6250000,
+    "DecimalMb": 6.25,
+    "BinaryMib": 5.9604644775390625,
+    "Notes": "Single 1-bit boolean bitmap (answers 1 query only)"
+  }
+]

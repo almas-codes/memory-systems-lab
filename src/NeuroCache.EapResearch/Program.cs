@@ -83,6 +83,13 @@ public class Program
                     await acceptanceRunner.RunAllAsync();
                     return 0;
 
+                case "semantic-compression":
+                case "semantic-experiment":
+                case "experiment":
+                    var expRunner = new NeuroCache.EapResearch.AdaptiveCompression.SemanticCompressionExperimentRunner();
+                    await expRunner.RunAllAsync();
+                    return 0;
+
                 default:
                     Console.WriteLine($"Unknown command: {cmd}");
                     PrintUsage();

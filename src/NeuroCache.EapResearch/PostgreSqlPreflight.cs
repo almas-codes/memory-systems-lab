@@ -38,6 +38,102 @@ public static class PostgreSqlPreflight
         return $"Host=localhost;Port=5432;Database={database};Username=postgres;Password=admin;Pooling=true;Maximum Pool Size=64;";
     }
 
+    /// <summary>
+    /// Returns connection string for the read-only application role (neurocache_app).
+    /// </summary>
+    public static string GetAppConnectionString(string database = "neurocache_eap_lab")
+    {
+        string? env = Environment.GetEnvironmentVariable("NEUROCACHE_APP_CONNECTION_STRING");
+        if (!string.IsNullOrWhiteSpace(env))
+            return env;
+
+        string password = Environment.GetEnvironmentVariable("NEUROCACHE_APP_PASSWORD") ?? "AppReaderSecure2026!";
+        return $"Host=localhost;Port=5432;Database={database};Username=neurocache_app;Password={password};Pooling=true;Maximum Pool Size=64;";
+    }
+
+    /// <summary>
+    /// Returns connection string for the coordinator write role (neurocache_writer).
+    /// </summary>
+    public static string GetWriterConnectionString(string database = "neurocache_eap_lab")
+    {
+        string? env = Environment.GetEnvironmentVariable("NEUROCACHE_WRITER_CONNECTION_STRING");
+        if (!string.IsNullOrWhiteSpace(env))
+            return env;
+
+        string password = Environment.GetEnvironmentVariable("NEUROCACHE_WRITER_PASSWORD") ?? "WriterSecure2026!";
+        return $"Host=localhost;Port=5432;Database={database};Username=neurocache_writer;Password={password};Pooling=true;Maximum Pool Size=64;";
+    }
+
+    /// <summary>
+    /// Sanitizes connection string for safe logging and reports (masks passwords).
+    /// </summary>
+    public static string SanitizeConnectionString(string connStr)
+    {
+        if (string.IsNullOrWhiteSpace(connStr)) return "";
+        var builder = new NpgsqlConnectionStringBuilder(connStr);
+        if (!string.IsNullOrEmpty(builder.Password))
+        {
+            builder.Password = "********";
+        }
+        return builder.ConnectionString;
+    }
+
+    /// <summary>
+    /// Idempotently ensures least-privilege roles (neurocache_app, neurocache_writer) are created
+    /// and granted exact non-superuser privileges in PostgreSQL.
+    /// </summary>
+    public static async Task EnsureLeastPrivilegeRolesAsync(string? adminConnStr = null, CancellationToken ct = default)
+    {
+        string connStr = adminConnStr ?? GetConnectionString();
+        await using var conn = new NpgsqlConnection(connStr);
+        await conn.OpenAsync(ct);
+
+        string appPass = Environment.GetEnvironmentVariable("NEUROCACHE_APP_PASSWORD") ?? "AppReaderSecure2026!";
+        string writerPass = Environment.GetEnvironmentVariable("NEUROCACHE_WRITER_PASSWORD") ?? "WriterSecure2026!";
+
+        string ddl = $@"
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'neurocache_app') THEN
+                CREATE ROLE neurocache_app WITH LOGIN PASSWORD '{appPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+            ELSE
+                ALTER ROLE neurocache_app WITH LOGIN PASSWORD '{appPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+            END IF;
+
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'neurocache_writer') THEN
+                CREATE ROLE neurocache_writer WITH LOGIN PASSWORD '{writerPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+            ELSE
+                ALTER ROLE neurocache_writer WITH LOGIN PASSWORD '{writerPass}' NOSUPERUSER NOCREATEDB NOCREATEROLE;
+            END IF;
+        END
+        $$;
+
+        GRANT CONNECT ON DATABASE neurocache_eap_lab TO neurocache_app;
+        GRANT CONNECT ON DATABASE neurocache_eap_lab TO neurocache_writer;
+
+        GRANT USAGE ON SCHEMA eap_audit_20261028 TO neurocache_app;
+        GRANT USAGE ON SCHEMA eap_audit_20261028 TO neurocache_writer;
+        GRANT USAGE ON SCHEMA eap_lab TO neurocache_app;
+        GRANT USAGE ON SCHEMA eap_lab TO neurocache_writer;
+
+        -- Read-only role grants
+        GRANT SELECT ON eap_audit_20261028.accounts_50m TO neurocache_app;
+        GRANT SELECT ON eap_audit_20261028.mutation_log TO neurocache_app;
+        REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON eap_audit_20261028.accounts_50m FROM neurocache_app;
+        REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON eap_audit_20261028.mutation_log FROM neurocache_app;
+
+        -- Coordinator write role grants
+        GRANT SELECT, UPDATE ON eap_audit_20261028.accounts_50m TO neurocache_writer;
+        GRANT SELECT, INSERT ON eap_audit_20261028.mutation_log TO neurocache_writer;
+        GRANT USAGE, SELECT ON SEQUENCE eap_audit_20261028.mutation_log_seq_id_seq TO neurocache_writer;
+        REVOKE DELETE, TRUNCATE ON eap_audit_20261028.accounts_50m FROM neurocache_writer;
+        REVOKE DELETE, TRUNCATE, UPDATE ON eap_audit_20261028.mutation_log FROM neurocache_writer;
+        ";
+
+        await using var cmd = new NpgsqlCommand(ddl, conn);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     public static async Task<PreflightReport> RunPreflightAsync(CancellationToken ct = default)
     {
         var report = new PreflightReport();

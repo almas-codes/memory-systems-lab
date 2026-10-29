@@ -1,0 +1,23 @@
+[
+  {
+    "CandidateName": "Candidate A (8 Independent Bitmaps)",
+    "TotalUpdates": 2000000,
+    "TotalDurationMs": 97.4251,
+    "UpdatesPerSec": 20528590.68145683,
+    "LatencyMeanNs": 48.71255
+  },
+  {
+    "CandidateName": "Candidate B (Packed 8-bit Pattern)",
+    "TotalUpdates": 2000000,
+    "TotalDurationMs": 16.9397,
+    "UpdatesPerSec": 118065845.32193606,
+    "LatencyMeanNs": 8.46985
+  },
+  {
+    "CandidateName": "Candidate C (Semantic Answer-Class)",
+    "TotalUpdates": 2000000,
+    "TotalDurationMs": 33.2685,
+    "UpdatesPerSec": 60116927.42383937,
+    "LatencyMeanNs": 16.63425
+  }
+]
