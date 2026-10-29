@@ -9,6 +9,7 @@ using NeuroCache.ResearchLab.Distributed;
 using NeuroCache.ResearchLab.DynamicSchema;
 using NeuroCache.ResearchLab.HybridEngine.Runners;
 using NeuroCache.ResearchLab.Scale;
+using NeuroCache.ResearchLab.ShadowPilot.Runners;
 using NeuroCache.ResearchLab.Simd;
 
 namespace NeuroCache.ResearchLab;
@@ -18,13 +19,18 @@ public static class Program
     public static async Task<int> Main(string[] args)
     {
         Console.WriteLine("==========================================================================");
-        Console.WriteLine("    NEUROCACHE RESEARCH LAB: PHASE 3 HYBRID TIERED ENGINE SUITE           ");
+        Console.WriteLine("    NEUROCACHE RESEARCH LAB: CONTROLLED SHADOW PILOT & HYBRID SUITE       ");
         Console.WriteLine("==========================================================================");
 
         string currentDir = Directory.GetCurrentDirectory();
         string repoRoot = currentDir.EndsWith("NeuroCache.ResearchLab") && !currentDir.Contains("research")
             ? currentDir
             : (currentDir.Contains("research") ? Path.GetFullPath(Path.Combine(currentDir, "..", "..")) : currentDir);
+
+        string shadowResultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-30_Shadow_Pilot");
+        Directory.CreateDirectory(shadowResultsDir);
+        Directory.CreateDirectory(Path.Combine(shadowResultsDir, "Raw"));
+        Directory.CreateDirectory(Path.Combine(shadowResultsDir, "Summaries"));
 
         string hybridResultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-30_Hybrid_Tiered_Engine");
         Directory.CreateDirectory(hybridResultsDir);
@@ -35,11 +41,19 @@ public static class Program
         string phase1ResultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-29_Final_Reconciliation");
         Directory.CreateDirectory(phase1ResultsDir);
 
+        // Shadow Pilot triggers
+        bool runShadowAll = args.Contains("--shadow-all");
+        bool runShadowMethodology = runShadowAll || args.Contains("--shadow-methodology") || args.Contains("--methodology");
+        bool runShadowBreakEven = runShadowAll || args.Contains("--shadow-breakeven") || args.Contains("--breakeven");
+        bool runShadowPilot = runShadowAll || args.Contains("--shadow-pilot") || args.Contains("--pilot");
+
+        // Hybrid Tiered Engine triggers
         bool runHybridAll = args.Contains("--hybrid-all");
         bool runHybridReconcile = runHybridAll || args.Contains("--hybrid-reconcile") || args.Contains("--reconcile-hybrid");
         bool runHybridIntegration = runHybridAll || args.Contains("--hybrid-integration") || args.Contains("--integration");
         bool runHybridBenchmark = runHybridAll || args.Contains("--hybrid-benchmark") || args.Contains("--bench-hybrid");
 
+        // Phase 2 triggers
         bool runPhase2All = args.Contains("--phase2-all");
         bool runTrack1 = runPhase2All || args.Contains("--track1-repartition") || args.Contains("--repartition");
         bool runTrack2 = runPhase2All || args.Contains("--track2-simd") || args.Contains("--simd");
@@ -52,16 +66,42 @@ public static class Program
         bool runConcurrencyGrowth = runFullGate || args.Contains("--concurrency-growth") || args.Contains("--concurrency-audit") || args.Contains("--concurrency") || args.Contains("--class-growth");
         bool runReconciliationTournament = runFullGate || args.Contains("--reconciliation-tournament") || args.Contains("--reconciliation-50m") || args.Contains("--tournament-50m");
 
-        // If no explicit arguments provided, default to running the full Hybrid Tiered Engine suite
+        // If no explicit arguments provided, default to running the Controlled Shadow Pilot suite
         if (args.Length == 0)
         {
-            runHybridAll = true;
-            runHybridReconcile = true;
-            runHybridIntegration = true;
-            runHybridBenchmark = true;
+            runShadowAll = true;
+            runShadowMethodology = true;
+            runShadowBreakEven = true;
+            runShadowPilot = true;
         }
 
-        // Hybrid Tiered Engine Suite
+        // ====================================================================
+        // SHADOW PILOT SUITE
+        // ====================================================================
+        if (runShadowMethodology)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE A: SHADOW BENCHMARK METHODOLOGY & UNIT INCONSISTENCY AUDIT");
+            var methodReport = await ShadowMethodologyRunner.RunMethodologyAuditAsync(shadowResultsDir);
+        }
+
+        if (runShadowBreakEven)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE H & I: AMORTIZED ANALYTICAL BREAK-EVEN & PREPARATION COST ANALYSIS");
+            var breakEvenReport = await ShadowAnalyticalBreakEvenRunner.RunBreakEvenAnalysisAsync(shadowResultsDir);
+        }
+
+        if (runShadowPilot)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASES B-G & J: CONTROLLED SHADOW PILOT, WORKLOAD PROFILES & GATES");
+            var masterReport = await ShadowPilotRunner.RunShadowPilotSuiteAsync(shadowResultsDir);
+        }
+
+        // ====================================================================
+        // HYBRID TIERED ENGINE SUITE
+        // ====================================================================
         if (runHybridReconcile)
         {
             Console.WriteLine();
@@ -104,7 +144,9 @@ public static class Program
             var tournamentResults = await FinalReconciliationTournamentRunner.RunTournamentAsync(50_000_000, phase1ResultsDir);
         }
 
-        // Phase 2 Advanced Tracks
+        // ====================================================================
+        // PHASE 2 ADVANCED RESEARCH TRACKS
+        // ====================================================================
         if (runTrack1)
         {
             Console.WriteLine();
@@ -136,7 +178,7 @@ public static class Program
         Console.WriteLine();
         Console.WriteLine("==========================================================================");
         Console.WriteLine("   NEUROCACHE RESEARCH LAB SUITE COMPLETED SUCCESSFULLY                  ");
-        Console.WriteLine($"   Hybrid Results Directory: {hybridResultsDir}");
+        Console.WriteLine($"   Shadow Results Directory: {shadowResultsDir}");
         Console.WriteLine("==========================================================================");
 
         return 0;

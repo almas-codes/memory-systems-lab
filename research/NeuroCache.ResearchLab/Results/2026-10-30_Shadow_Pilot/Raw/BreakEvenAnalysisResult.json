@@ -1,0 +1,138 @@
+{
+  "DatasetRecords": 1000000,
+  "HydrationTimeMs": 93.0088,
+  "MutationIngestTimeMsPer1000": 0.07279999999999999,
+  "HybridQueryTimeMs": 0.309695,
+  "PostgreSqlQueryTimeMs": 132.5,
+  "BreakEvenKZeroWrites": 1,
+  "BreakEvenK10kWrites": 1,
+  "BreakEvenK100kWrites": 1,
+  "HorizonCurve": [
+    {
+      "QueryHorizonK": 1,
+      "WriteEventsW": 10,
+      "HybridTotalCostMs": 93.319223,
+      "PostgreSqlTotalCostMs": 132.5,
+      "CostDifferenceMs": 39.180777000000006,
+      "EffectiveSpeedup": 1.4198575142444125,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 2,
+      "WriteEventsW": 20,
+      "HybridTotalCostMs": 93.629646,
+      "PostgreSqlTotalCostMs": 265,
+      "CostDifferenceMs": 171.37035400000002,
+      "EffectiveSpeedup": 2.8303001380567006,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 5,
+      "WriteEventsW": 50,
+      "HybridTotalCostMs": 94.560915,
+      "PostgreSqlTotalCostMs": 662.5,
+      "CostDifferenceMs": 567.939085,
+      "EffectiveSpeedup": 7.006065878275396,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 10,
+      "WriteEventsW": 100,
+      "HybridTotalCostMs": 96.11303,
+      "PostgreSqlTotalCostMs": 1325,
+      "CostDifferenceMs": 1228.88697,
+      "EffectiveSpeedup": 13.785851928713516,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 25,
+      "WriteEventsW": 250,
+      "HybridTotalCostMs": 100.76937499999998,
+      "PostgreSqlTotalCostMs": 3312.5,
+      "CostDifferenceMs": 3211.730625,
+      "EffectiveSpeedup": 32.872090354832515,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 50,
+      "WriteEventsW": 500,
+      "HybridTotalCostMs": 108.52995,
+      "PostgreSqlTotalCostMs": 6625,
+      "CostDifferenceMs": 6516.47005,
+      "EffectiveSpeedup": 61.04305769974095,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 100,
+      "WriteEventsW": 1000,
+      "HybridTotalCostMs": 124.05109999999999,
+      "PostgreSqlTotalCostMs": 13250,
+      "CostDifferenceMs": 13125.9489,
+      "EffectiveSpeedup": 106.81082231435272,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 250,
+      "WriteEventsW": 2500,
+      "HybridTotalCostMs": 170.61455,
+      "PostgreSqlTotalCostMs": 33125,
+      "CostDifferenceMs": 32954.38545,
+      "EffectiveSpeedup": 194.15108500418046,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 500,
+      "WriteEventsW": 5000,
+      "HybridTotalCostMs": 248.2203,
+      "PostgreSqlTotalCostMs": 66250,
+      "CostDifferenceMs": 66001.7797,
+      "EffectiveSpeedup": 266.9000077753512,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 1000,
+      "WriteEventsW": 10000,
+      "HybridTotalCostMs": 403.43179999999995,
+      "PostgreSqlTotalCostMs": 132500,
+      "CostDifferenceMs": 132096.5682,
+      "EffectiveSpeedup": 328.4322158045053,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 5000,
+      "WriteEventsW": 50000,
+      "HybridTotalCostMs": 1645.1237999999998,
+      "PostgreSqlTotalCostMs": 662500,
+      "CostDifferenceMs": 660854.8762,
+      "EffectiveSpeedup": 402.70525537348624,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 10000,
+      "WriteEventsW": 50000,
+      "HybridTotalCostMs": 3193.5987999999998,
+      "PostgreSqlTotalCostMs": 1325000,
+      "CostDifferenceMs": 1321806.4012,
+      "EffectiveSpeedup": 414.8924404655964,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 50000,
+      "WriteEventsW": 50000,
+      "HybridTotalCostMs": 15581.3988,
+      "PostgreSqlTotalCostMs": 6625000,
+      "CostDifferenceMs": 6609418.6012,
+      "EffectiveSpeedup": 425.18647298854836,
+      "HybridIsCheaper": true
+    },
+    {
+      "QueryHorizonK": 100000,
+      "WriteEventsW": 50000,
+      "HybridTotalCostMs": 31066.1488,
+      "PostgreSqlTotalCostMs": 13250000,
+      "CostDifferenceMs": 13218933.8512,
+      "EffectiveSpeedup": 426.5092556306819,
+      "HybridIsCheaper": true
+    }
+  ]
+}
