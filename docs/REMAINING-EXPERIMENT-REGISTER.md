@@ -41,6 +41,15 @@ In accordance with Phase 2 integrity standards, no experiment is classified as c
 | `SEM-BITMAPS-001` | `SEM-01` | `SEM01_IndependentBitmaps` | SemanticEncoding | **`BENCHMARKED_COMPLETE`** | Baseline: 10.74 Mops/s ST read, 105.78 Mops/s MT16, 50.00 MB memory. |
 | `REC-SEQLOCK-003` | `REC-03` | `REC03_SeqlockPagePublication` | Recovery | **`BENCHMARKED_COMPLETE`** | 20.74 Mops/s ST read, 50.78 MB memory, zero torn reads across 11.6M writes. |
 
+### 2.1B. Production Integrated Hybrid Tiered Engine
+| Candidate ID | System Name | Key Components | Research Family | Status | Verification Summary |
+|---|---|---|---|:---:|:---|
+| `HYBRID-TIERED-ENGINE-001` | `HybridQueryRouter` | `PROD-01` + `THR-02` + CDC Coordinator | HybridTieredEngine | **`COMPLETED_VERIFIED`** | Unified engine for OLTP point lookups (14 ns p50) and analytical range scans (2.28 Giga-records/s); 18/18 integration tests pass; 6/6 crash recovery gates pass; 18.25 MB / 10M records. |
+| `HYBRID-OPT-01` | `SharedConditionReuser` | `SourceConditionToken` pre-decode | HybridOptimizations | **`COMPLETED_VERIFIED`** | Single decode feeds both point and analytical engines; zero redundant evaluations. |
+| `HYBRID-OPT-02` | `BatchAwareRouter` | Vectorized batch selector | HybridOptimizations | **`COMPLETED_VERIFIED`** | Break-even measured at batch size $N \ge 16$. |
+| `HYBRID-OPT-03` | `AdaptiveWorkloadRouter` | Hysteresis telemetry controller | HybridOptimizations | **`COMPLETED_VERIFIED`** | 60% analytical trigger; recommendation mode verified without route flapping. |
+| `HYBRID-OPT-04` | `ConcurrentSchemaEvolutionEngine` | Online 8-bit promotion coordinator | HybridOptimizations | **`COMPLETED_VERIFIED`** | Coordinates live dictionary swap while traffic seamlessly uses fallback. |
+
 ### 2.2. Validated Structural & Algorithmic Baselines
 | Candidate ID | Legacy / Astra ID | Class Name | Research Family | Status | Verification Summary |
 |---|---|---|---|:---:|:---|

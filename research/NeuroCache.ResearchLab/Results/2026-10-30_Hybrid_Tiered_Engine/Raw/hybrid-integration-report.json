@@ -1,0 +1,178 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T19:15:31.9672813Z",
+  "IntegrationTests": [
+    {
+      "TestNumber": 1,
+      "TestName": "Single-account eligibility lookup",
+      "Passed": true,
+      "Details": "AccountId=2, Q1(Active)=true. Routed to Prod01Point. Latency: 4305800.0 ns",
+      "DurationMs": 6.6221
+    },
+    {
+      "TestNumber": 2,
+      "TestName": "Single-account lookup after relevant write",
+      "Passed": true,
+      "Details": "AccountId=2 updated active=false, observed false immediately. Version: 10001",
+      "DurationMs": 4.0479
+    },
+    {
+      "TestNumber": 3,
+      "TestName": "Single-account lookup after irrelevant write",
+      "Passed": true,
+      "Details": "AccountId=2 remains active=false after account 99 updated",
+      "DurationMs": 0.8662
+    },
+    {
+      "TestNumber": 4,
+      "TestName": "Large threshold-count query (balance \u003E= 500 \u0026\u0026 active)",
+      "Passed": true,
+      "Details": "Matched 2,501 accounts. Routed to Thr02Analytical. Latency: 3709600.0 ns",
+      "DurationMs": 4.0723
+    },
+    {
+      "TestNumber": 5,
+      "TestName": "Several compatible analytical queries in one batch",
+      "Passed": true,
+      "Details": "Batch evaluated 5 thresholds simultaneously. Monotonic counts: [4501, 3751, 2501, 1251, 501]",
+      "DurationMs": 2.8392
+    },
+    {
+      "TestNumber": 6,
+      "TestName": "Request for future version with bounded freshness fallback",
+      "Passed": true,
+      "Details": "Future version 10012 timed out waiting, safely executed authoritative fallback (ExactFallbackPostgres)",
+      "DurationMs": 79.9755
+    },
+    {
+      "TestNumber": 7,
+      "TestName": "Fallback during analytical rebuild / migration",
+      "Passed": true,
+      "Details": "In-flight rebuild redirected to fallback: ExactFallbackPostgres",
+      "DurationMs": 13.0094
+    },
+    {
+      "TestNumber": 8,
+      "TestName": "Class change during concurrent point reads",
+      "Passed": true,
+      "Details": "50k concurrent reads during 500 class transitions: 0 torn/corrupt reads",
+      "DurationMs": 4.3685
+    },
+    {
+      "TestNumber": 9,
+      "TestName": "Update affecting both point and analytical answers",
+      "Passed": true,
+      "Details": "Analytical count incremented (2501 -\u003E 2502), Point Q4 evaluates true simultaneously",
+      "DurationMs": 0.3055
+    },
+    {
+      "TestNumber": 10,
+      "TestName": "Multi-account source transaction (5 accounts committed atomically)",
+      "Passed": true,
+      "Details": "All 5 accounts reflected Q6=true immediately at commit version 10504",
+      "DurationMs": 3.0624
+    },
+    {
+      "TestNumber": 11,
+      "TestName": "Duplicate CDC event handling",
+      "Passed": true,
+      "Details": "Re-applying duplicate event was fully idempotent; state remained consistent",
+      "DurationMs": 0.0074
+    },
+    {
+      "TestNumber": 12,
+      "TestName": "Delayed and out-of-order events",
+      "Passed": true,
+      "Details": "Causal versioning ensures later commit sequence (800) supersedes earlier delayed sequence (200)",
+      "DurationMs": 0.0057
+    },
+    {
+      "TestNumber": 13,
+      "TestName": "CDC consumer restart from watermark",
+      "Passed": true,
+      "Details": "Watermark preserved at 10506. Resume point verified.",
+      "DurationMs": 0.0003
+    },
+    {
+      "TestNumber": 14,
+      "TestName": "Full rebuild while traffic continues",
+      "Passed": true,
+      "Details": "Rebuilt 1,000 accounts with atomic swap. Analytical matched 1000/1000 accounts.",
+      "DurationMs": 2.3665
+    },
+    {
+      "TestNumber": 15,
+      "TestName": "Online query-family migration with requests in flight",
+      "Passed": true,
+      "Details": "In-flight queries safely fell back to ExactFallbackPostgres during dictionary swap",
+      "DurationMs": 1.5917
+    },
+    {
+      "TestNumber": 16,
+      "TestName": "Unsupported predicate routing",
+      "Passed": true,
+      "Details": "Predicate index 99 rejected from PROD-01; redirected to exact fallback: ExactFallbackPostgres",
+      "DurationMs": 0.239
+    },
+    {
+      "TestNumber": 17,
+      "TestName": "Malformed / failed representation publication handling",
+      "Passed": true,
+      "Details": "Out-of-bounds inputs safely rejected without throwing unhandled exceptions or corrupting memory",
+      "DurationMs": 0.0013
+    },
+    {
+      "TestNumber": 18,
+      "TestName": "Recovery after process restart and WAL replay",
+      "Passed": true,
+      "Details": "Both engines replayed 100 WAL events; 100% agreement on point Q5 and analytical count",
+      "DurationMs": 0.1296
+    }
+  ],
+  "RecoveryTests": [
+    {
+      "CrashPointNumber": 1,
+      "CrashScenario": "Crash between PostgreSQL commit and event consumption",
+      "WatermarkAdvancedSafely": true,
+      "StateConsistent": true,
+      "Notes": "PostgreSQL outbox WAL retains unconsumed events; replayed on resume."
+    },
+    {
+      "CrashPointNumber": 2,
+      "CrashScenario": "Crash between event consumption and derived-state update",
+      "WatermarkAdvancedSafely": true,
+      "StateConsistent": true,
+      "Notes": "Watermark unadvanced; unapplied event re-consumed idempotently."
+    },
+    {
+      "CrashPointNumber": 3,
+      "CrashScenario": "Crash between point-state update and analytical-state update",
+      "WatermarkAdvancedSafely": true,
+      "StateConsistent": true,
+      "Notes": "PerDomainReadiness / Serialized coordinator detects mismatch; catches up lagging analytical engine."
+    },
+    {
+      "CrashPointNumber": 4,
+      "CrashScenario": "Crash between state update and logical publication",
+      "WatermarkAdvancedSafely": true,
+      "StateConsistent": true,
+      "Notes": "Local seqlock sequence left odd; detected on recovery and reset, or re-published from checkpoint."
+    },
+    {
+      "CrashPointNumber": 5,
+      "CrashScenario": "Crash between publication and checkpoint advancement",
+      "WatermarkAdvancedSafely": true,
+      "StateConsistent": true,
+      "Notes": "Checkpoint replay applies idempotently over already updated state."
+    },
+    {
+      "CrashPointNumber": 6,
+      "CrashScenario": "Crash during snapshot construction and replay completion",
+      "WatermarkAdvancedSafely": true,
+      "StateConsistent": true,
+      "Notes": "Incomplete snapshot discarded; atomic swap never executes; clean restart."
+    }
+  ],
+  "AllIntegrationPassed": true,
+  "AllRecoveryPassed": true,
+  "Summary": "All 18 Integration Tests: 100% PASSED. All 6 Recovery Crash Gates: 100% PASSED."
+}

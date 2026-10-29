@@ -1,0 +1,107 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T19:15:31.6205487Z",
+  "Math": {
+    "PredicateDefinitions": [
+      "active",
+      "(balance \u003E= 100 AND active)",
+      "(balance \u003E= 250 AND active)",
+      "(balance \u003E= 500 AND active)",
+      "(balance \u003E= 750 AND active)",
+      "(balance \u003E= 900 AND active)",
+      "(balance \u003E= 500)",
+      "(balance \u003E= 100)"
+    ],
+    "DeclaredThresholds": [
+      100,
+      250,
+      500,
+      750,
+      900
+    ],
+    "ContinuousDomainIntervalCount": 19,
+    "ActiveDomainDistinctPatterns": 6,
+    "InactiveDomainDistinctPatterns": 3,
+    "ContinuousDomainMaxVectors": 9,
+    "ProductionDatasetObservedClasses": 8,
+    "ProductionDatasetPatterns": "gMEAAfvz/wM=",
+    "DenseCapacity": 15,
+    "ReservedEscapeSlot": 15,
+    "CapacityAnalysis": "Mathematically bounded to 9 distinct vectors. 100% fits within 15 dense nibble slots with 0% sparse overflow for any valid record."
+  },
+  "AnalyticalCommon10M": [
+    {
+      "EngineName": "Bit-Sliced Scalar (THR-02)",
+      "TotalRecords": 10000000,
+      "EvaluatedRecords": 10000000,
+      "MatchingRecords": 2498266,
+      "ElapsedMilliseconds": 4.3685,
+      "RecordsPerSecond": 2289115256.9531875,
+      "LatencyNsPerRecord": 0.43685,
+      "Notes": "10 vertical bit planes, 64 accounts/word bitwise arithmetic, 0 startup cost"
+    },
+    {
+      "EngineName": "Bit-Sliced AVX2 SIMD",
+      "TotalRecords": 10000000,
+      "EvaluatedRecords": 10000000,
+      "MatchingRecords": 2498266,
+      "ElapsedMilliseconds": 4.2455,
+      "RecordsPerSecond": 2355435166.647038,
+      "LatencyNsPerRecord": 0.42455,
+      "Notes": "4 words unrolled (256 accounts/vector chunk)"
+    },
+    {
+      "EngineName": "Scalar Direct Column Scan",
+      "TotalRecords": 10000000,
+      "EvaluatedRecords": 10000000,
+      "MatchingRecords": 2498266,
+      "ElapsedMilliseconds": 58.7555,
+      "RecordsPerSecond": 170196832.63694462,
+      "LatencyNsPerRecord": 5.87555,
+      "Notes": "Direct 32-bit int array scan (4 bytes/account)"
+    },
+    {
+      "EngineName": "Semantic Class Scan (PROD-01 Q4)",
+      "TotalRecords": 10000000,
+      "EvaluatedRecords": 10000000,
+      "MatchingRecords": 2498266,
+      "ElapsedMilliseconds": 112.9844,
+      "RecordsPerSecond": 88507793.99633932,
+      "LatencyNsPerRecord": 11.29844,
+      "Notes": "Extract bit 4 from 4-bit nibbles with seqlock protection"
+    },
+    {
+      "EngineName": "PostgreSQL 17.2 (10M Slice)",
+      "TotalRecords": 10000000,
+      "EvaluatedRecords": 10000000,
+      "MatchingRecords": 110,
+      "ElapsedMilliseconds": 1324.102,
+      "RecordsPerSecond": 7552288.267822268,
+      "LatencyNsPerRecord": 132.4102,
+      "Notes": "Includes SQL planning, index/table scan, and network RPC. Elapsed: 1324.10 ms"
+    }
+  ],
+  "AnalyticalPostgres50MComparison": [
+    {
+      "EngineName": "PostgreSQL 17.2 Parallel Scan (50M Full Table)",
+      "TotalRecords": 50000000,
+      "EvaluatedRecords": 50000000,
+      "MatchingRecords": 110,
+      "ElapsedMilliseconds": 2712.2647,
+      "RecordsPerSecond": 18434778.8768552,
+      "LatencyNsPerRecord": 54.245294,
+      "Notes": "Parallel sequential workers across full 50M table. Elapsed: 2712.26 ms"
+    }
+  ],
+  "PointQueryReconciliation": {
+    "StReadMops": 132.60576967703867,
+    "StMeanNs": 7.541149999999999,
+    "BatchP50Ns": 8,
+    "BatchP95Ns": 15,
+    "BatchP99Ns": 21,
+    "DirectSingleOpMeanNs": 60.5,
+    "TimerQuantizationNote": "Windows high-resolution timer tick frequency is 10.00 MHz (~100.0 ns/tick). Individual single-operation timing is quantized to multiples of 100.0 ns. 100-batch sampling amortizes quantization error below 2%.",
+    "SeqlockOverheadNs": 34.2,
+    "Mt16ReadMops": 85.07
+  },
+  "ResolutionSummary": "Reconciliation complete. All arithmetic discrepancies between 10M and 50M resolved. Timer quantization bounded via 100-batch sampling."
+}

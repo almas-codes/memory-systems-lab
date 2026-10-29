@@ -7,6 +7,7 @@ using NeuroCache.ResearchLab.Benchmarks;
 using NeuroCache.ResearchLab.Data;
 using NeuroCache.ResearchLab.Distributed;
 using NeuroCache.ResearchLab.DynamicSchema;
+using NeuroCache.ResearchLab.HybridEngine.Runners;
 using NeuroCache.ResearchLab.Scale;
 using NeuroCache.ResearchLab.Simd;
 
@@ -17,7 +18,7 @@ public static class Program
     public static async Task<int> Main(string[] args)
     {
         Console.WriteLine("==========================================================================");
-        Console.WriteLine("    NEUROCACHE RESEARCH LAB: PHASE 2 ADVANCED RESEARCH & SCALE SUITE      ");
+        Console.WriteLine("    NEUROCACHE RESEARCH LAB: PHASE 3 HYBRID TIERED ENGINE SUITE           ");
         Console.WriteLine("==========================================================================");
 
         string currentDir = Directory.GetCurrentDirectory();
@@ -25,13 +26,21 @@ public static class Program
             ? currentDir
             : (currentDir.Contains("research") ? Path.GetFullPath(Path.Combine(currentDir, "..", "..")) : currentDir);
 
+        string hybridResultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-30_Hybrid_Tiered_Engine");
+        Directory.CreateDirectory(hybridResultsDir);
+
         string phase2ResultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-29_Phase2_Advanced_Research");
         Directory.CreateDirectory(phase2ResultsDir);
 
         string phase1ResultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-29_Final_Reconciliation");
         Directory.CreateDirectory(phase1ResultsDir);
 
-        bool runPhase2All = args.Length == 0 || args.Contains("--phase2-all");
+        bool runHybridAll = args.Contains("--hybrid-all");
+        bool runHybridReconcile = runHybridAll || args.Contains("--hybrid-reconcile") || args.Contains("--reconcile-hybrid");
+        bool runHybridIntegration = runHybridAll || args.Contains("--hybrid-integration") || args.Contains("--integration");
+        bool runHybridBenchmark = runHybridAll || args.Contains("--hybrid-benchmark") || args.Contains("--bench-hybrid");
+
+        bool runPhase2All = args.Contains("--phase2-all");
         bool runTrack1 = runPhase2All || args.Contains("--track1-repartition") || args.Contains("--repartition");
         bool runTrack2 = runPhase2All || args.Contains("--track2-simd") || args.Contains("--simd");
         bool runTrack3 = runPhase2All || args.Contains("--track3-scale500m") || args.Contains("--scale-500m");
@@ -42,6 +51,37 @@ public static class Program
         bool runExhaustiveParity = runFullGate || args.Contains("--exhaustive-parity") || args.Contains("--parity-50m") || args.Contains("--validate-50m");
         bool runConcurrencyGrowth = runFullGate || args.Contains("--concurrency-growth") || args.Contains("--concurrency-audit") || args.Contains("--concurrency") || args.Contains("--class-growth");
         bool runReconciliationTournament = runFullGate || args.Contains("--reconciliation-tournament") || args.Contains("--reconciliation-50m") || args.Contains("--tournament-50m");
+
+        // If no explicit arguments provided, default to running the full Hybrid Tiered Engine suite
+        if (args.Length == 0)
+        {
+            runHybridAll = true;
+            runHybridReconcile = true;
+            runHybridIntegration = true;
+            runHybridBenchmark = true;
+        }
+
+        // Hybrid Tiered Engine Suite
+        if (runHybridReconcile)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 3: HYBRID EVIDENCE RECONCILIATION & BENCHMARK AUDIT");
+            var reconcileReport = await HybridReconciliationRunner.RunReconciliationAsync(hybridResultsDir);
+        }
+
+        if (runHybridIntegration)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 3: 18 HYBRID INTEGRATION TESTS & CRASH RECOVERY GATES");
+            var intReport = await HybridIntegrationRunner.RunIntegrationTestsAsync(hybridResultsDir);
+        }
+
+        if (runHybridBenchmark)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 3: FULL HYBRID SYSTEM BENCHMARK TOURNAMENT (10M / 50M)");
+            var benchReport = await HybridBenchmarkRunner.RunBenchmarkSuiteAsync(10_000_000, hybridResultsDir);
+        }
 
         if (runExhaustiveParity)
         {
@@ -95,8 +135,8 @@ public static class Program
 
         Console.WriteLine();
         Console.WriteLine("==========================================================================");
-        Console.WriteLine("   PHASE 2 ADVANCED RESEARCH & EXPERIMENTAL SUITE COMPLETED               ");
-        Console.WriteLine($"   Results Directory: {phase2ResultsDir}");
+        Console.WriteLine("   NEUROCACHE RESEARCH LAB SUITE COMPLETED SUCCESSFULLY                  ");
+        Console.WriteLine($"   Hybrid Results Directory: {hybridResultsDir}");
         Console.WriteLine("==========================================================================");
 
         return 0;
