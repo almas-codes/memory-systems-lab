@@ -1,0 +1,85 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T18:05:49.6287682Z",
+  "DatabaseHost": "localhost:5432 / neurocache_eap_lab",
+  "TableName": "eap_audit_20261028.accounts_50m",
+  "TotalRecordsScanned": 50000000,
+  "TotalRecordsEncoded": 50000000,
+  "TotalRecordsCompared": 50000000,
+  "TotalPredicateComparisons": 400000000,
+  "TotalMatches": 400000000,
+  "TotalMismatches": 0,
+  "SkippedComparisons": 0,
+  "FailedReads": 0,
+  "IsExhaustive": true,
+  "Sha256ByteSerializationFormat": "LittleEndian_Int64_ID (8 bytes) \u002B Byte_Pattern (1 byte) = 9 bytes per record",
+  "StreamingSha256Digest": "265D6E5AEC71F23EA24C7D74B6D6F60C8897411A0838028833DB72331BC5E3CA",
+  "ElapsedSeconds": 40.1969089,
+  "RecordsPerSecond": 1243876.73998485,
+  "DistinctPatternsObserved": 8,
+  "PatternDistribution": [
+    {
+      "Pattern": 0,
+      "Hex": "0x00",
+      "Binary": "00000000",
+      "Count": 2499756,
+      "Percentage": 4.999512,
+      "Description": "Inactive, Balance \u003C 100"
+    },
+    {
+      "Pattern": 1,
+      "Hex": "0x01",
+      "Binary": "00000001",
+      "Count": 2499753,
+      "Percentage": 4.999506,
+      "Description": "Inactive, 100 \u003C= Balance \u003C 500"
+    },
+    {
+      "Pattern": 3,
+      "Hex": "0x03",
+      "Binary": "00000011",
+      "Count": 3,
+      "Percentage": 6E-06,
+      "Description": "Inactive, Balance \u003E= 500"
+    },
+    {
+      "Pattern": 128,
+      "Hex": "0x80",
+      "Binary": "10000000",
+      "Count": 22500241,
+      "Percentage": 45.000482,
+      "Description": "Active, Balance \u003C 100 (Micro Tier)"
+    },
+    {
+      "Pattern": 193,
+      "Hex": "0xC1",
+      "Binary": "11000001",
+      "Count": 22500137,
+      "Percentage": 45.000274,
+      "Description": "Active, 100 \u003C= Balance \u003C 250 (Basic Tier)"
+    },
+    {
+      "Pattern": 243,
+      "Hex": "0xF3",
+      "Binary": "11110011",
+      "Count": 5,
+      "Percentage": 1E-05,
+      "Description": "Active, 500 \u003C= Balance \u003C 750 (Mid Tier)"
+    },
+    {
+      "Pattern": 251,
+      "Hex": "0xFB",
+      "Binary": "11111011",
+      "Count": 100,
+      "Percentage": 0.0002,
+      "Description": "Active, 750 \u003C= Balance \u003C 900 (Upper Tier)"
+    },
+    {
+      "Pattern": 255,
+      "Hex": "0xFF",
+      "Binary": "11111111",
+      "Count": 5,
+      "Percentage": 1E-05,
+      "Description": "Active, Balance \u003E= 900 (High Tier)"
+    }
+  ]
+}

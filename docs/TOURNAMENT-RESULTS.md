@@ -2,7 +2,7 @@
 
 **Repository:** `almas-codes/memory-systems-lab`  
 **Date:** October 29, 2026  
-**Benchmarking Harness:** `TournamentBenchmarkRunner` & `FairTournament50MRunner`  
+**Benchmarking Harness:** `TournamentBenchmarkRunner`, `FairTournament50MRunner`, and `FinalReconciliationTournamentRunner`  
 **Host Hardware:** AMD Ryzen 7 5825U (8 Physical Cores, 16 Logical Processors, 16 MB L3 Cache)  
 **Execution Environment:** Windows 11 x64, .NET 10.0.401, PostgreSQL 17.2, 16 GB RAM  
 **Research Lead:** Almas Khan (`almaskhanwazir@gmail.com`)
@@ -15,6 +15,7 @@ To evaluate all candidate representations on identical hardware and data distrib
 - **Phase 1:** 1,000,000 synthetic accounts (uniform random, Zipfian skewed, contended concurrent writes).
 - **Phase 2:** 10,000,000 synthetic accounts (verifying scalability and cache boundary effects).
 - **Phase 3:** Full 50,000,000 production dataset (`accounts_50m`) on AMD Ryzen 7 5825U.
+- **Phase 4 (Final Reconciliation):** Exhaustive 50M verification of the integrated production candidate `PROD-CANDIDATE-4BIT-EXCEPTION-SEQLOCK-001` alongside the 6 research baselines, with timer quantization resolved via 100-query batch sampling.
 
 All candidates were populated using the empirical 50M distribution:
 - **45.0005%** Pattern 128 (Active, bal < 100)
@@ -25,23 +26,25 @@ All candidates were populated using the empirical 50M distribution:
 
 ---
 
-## 2. 50,000,000 Record Finalist Tournament Results
+## 2. 50,000,000 Record Finalist Tournament Results (Reconciled)
 
-Conducted across 50,000,000 records with single-thread read, 8-thread read, 16-thread saturation read, Zipfian (80/20) read, sequential full scan, single-thread write, multi-thread write, adjacent packed-ID contention write, and mixed concurrent workloads:
+Conducted across 50,000,000 records with single-thread read, 4-thread read, 8-thread read, 16-thread saturation read, Zipfian (80/20) read, sequential full scan, single-thread write, multi-thread write, adjacent packed-ID contention write, and mixed concurrent workloads:
 
-| Candidate ID | Candidate Name | Family | Total (MB) | Total (MiB) | Bits/Acc | ST Read (Mops/s) | MT 8T (Mops/s) | MT 16T (Mops/s) | ST p50 (ns) | ST p99 (ns) | Zipf 8T (Mops/s) | Seq Scan (Mops/s) | ST Write (Mops/s) | MT8 Write (Mops/s) | Adj CAS Write (Mops/s) | Mixed 99/1 (Mops/s) |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `SEM-CLASS3-004` | 3-Bit Semantic Classes | SemanticEncoding | **18.75** | **17.88** | **3.00** | 7.39 | 54.23 | 78.45 | 200.0 | 700.0 | 51.03 | 134.06 | 3.51 | 17.63 | 31.32 | 94.16 |
-| `SEM-CLASS4-003` | 4-Bit Semantic Classes | SemanticEncoding | **25.00** | **23.84** | **4.00** | **37.09** | 43.62 | 92.55 | **100.0** | **200.0** | 99.84 | 116.11 | **45.77** | 31.06 | **169.20** | **88.15** |
-| `COMBO-SEM-SPARSE-002` | Semantic Classes + Rare Exceptions | HybridCompositions | 25.00 | 23.84 | 4.00 | 29.52 | 42.80 | **100.60** | **100.0** | **200.0** | **111.19** | 88.19 | 14.83 | 8.73 | 9.52 | 49.23 |
-| `SEM-BYTEVEC-002` | Byte Answer Vector | SemanticEncoding | 50.00 | 47.68 | 8.00 | 29.06 | 59.28 | 158.63 | 100.0 | 200.0 | 111.05 | 94.61 | 47.27 | 84.58 | 291.65 | 380.89 |
-| `REP-CJB-001` | Correlated Outcome Joint Bitmap | Representations | 50.00 | 47.68 | 8.00 | 33.29 | 57.39 | 95.64 | 100.0 | 200.0 | 108.96 | 244.91 | 49.48 | 59.83 | 303.26 | 83.93 |
-| `SEM-BITMAPS-001` | Independent Bitmaps (EAP Baseline) | SemanticEncoding | 50.00 | 47.68 | 8.00 | 9.43 | 44.16 | 89.21 | 200.0 | 700.0 | 101.51 | 103.84 | 2.54 | 10.80 | 80.50 | 60.19 |
-| `REC-SEQLOCK-003` | Seqlock Page Publication | Recovery | 50.78 | 48.43 | 8.13 | 20.74 | 44.36 | 68.01 | 100.0 | 300.0 | 90.48 | 78.78 | 6.71 | 13.13 | 14.35 | 50.27 |
+| Candidate ID | Candidate Name | Architecture Family | Total Static (MB) | Total Static (MiB) | Bits / Acc | ST Read (Mops/s) | ST Mean (ns) | ST p50 (ns) | ST p99 (ns) | MT 8T (Mops/s) | MT 16T (Mops/s) | Zipf 8T (Mops/s) | Seq Scan (Mops/s) | ST Write (Mops/s) | MT 8T Write (Mops/s) | Adj CAS Write (Mops/s) | Mixed 95/5 (Mops/s) |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| `SEM-CLASS3-004` | 3-Bit Semantic Classes | SemanticEncoding | **18.75** | **17.88** | **3.00** | 8.48 | 117.9 | 94.0 | 296.0 | 78.09 | 96.97 | 106.14 | 103.69 | 4.96 | 16.76 | 32.22 | 92.10 |
+| `COMBO-SEM-SPARSE-002` | Semantic Classes + Rare Exceptions | HybridCompositions | 25.00 | 23.84 | 4.00 | 26.88 | 37.2 | 40.0 | 55.0 | 67.04 | 81.18 | 98.75 | 82.00 | 14.71 | 7.16 | 9.84 | 36.07 |
+| `SEM-CLASS4-003` | 4-Bit Semantic Classes | SemanticEncoding | 25.00 | 23.84 | 4.00 | **37.85** | **26.4** | **21.0** | **60.0** | 88.73 | 97.03 | 100.91 | 210.18 | **31.67** | **61.31** | **182.40** | **103.97** |
+| **`PROD-01` (Integrated)** | **4-Bit Exception Seqlock** | **ProductionCandidate** | **26.95** | **25.70** | **4.31** | **16.50** | **60.6** | **53.0** | **148.0** | **62.76** | **85.07** | **93.58** | **60.87** | **11.11** | **9.12** | **9.72** | **32.91** |
+| `REP-CJB-001` | Correlated Outcome Joint Bitmap | Representations | 50.00 | 47.68 | 8.00 | 33.64 | 29.7 | 22.0 | 89.0 | 90.00 | 115.94 | 114.13 | 138.21 | 48.80 | 59.59 | 171.50 | 96.83 |
+| `SEM-BYTEVEC-002` | Byte Answer Vector | SemanticEncoding | 50.00 | 47.68 | 8.00 | 38.10 | 26.2 | 24.0 | 43.0 | 218.95 | 71.91 | 117.45 | 295.77 | 51.98 | 95.24 | 299.45 | 371.95 |
+| `SEM-BITMAPS-001` | Independent Bitmaps (EAP Baseline) | SemanticEncoding | 50.00 | 47.68 | 8.00 | 10.74 | 93.1 | 94.0 | 248.0 | 78.60 | 105.78 | 103.46 | 95.18 | 2.80 | 9.64 | 69.25 | 306.45 |
+
+*(Note: `PROD-01` is `PROD-CANDIDATE-4BIT-EXCEPTION-SEQLOCK-001`)*
 
 ---
 
-## 3. 10,000,000 Account Tournament Results
+## 3. 10,000,000 Account Tournament Results (Phase 2)
 
 | Rank | Candidate ID | Architecture Name | Family | Memory (MB) | Memory (MiB) | Bits / Acc | ST Read (Mops/s) | MT Read (Mops/s) | Zipf Read (Mops/s) | MT Write (Mops/s) |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -67,9 +70,9 @@ Conducted across 50,000,000 records with single-thread read, 8-thread read, 16-t
 
 1. **Hardware Cache Boundary Clarification:**  
    The AMD Ryzen 7 5825U host has **16 MB of shared L3 cache**. A 25.00 MB array does not fit entirely in L3; rather, L3 cache covers **64.0%** of the working set (vs 32% for 50 MB arrays). 4-bit delivers a 2x higher L3 hit rate, cuts DDR4 bus traffic in half, and packs **128 accounts per 64-byte cache line** (vs 64 accounts in 8-bit).
-2. **`SEM-CLASS4-003` Write Engine Dominance:**  
-   `SEM-CLASS4-003` achieved **45.77 Mops/s** single-thread write throughput and **169.20 Mops/s** adjacent-ID contention write throughput because updating a 4-bit nibble requires only a lock-free atomic `Interlocked.CompareExchange` on byte $K$. In contrast, `COMBO-02` spends CPU cycles on dictionary checks (8.73 Mops/s MT8 write).
-3. **`COMBO-SEM-SPARSE-002` Read & Safety Leadership:**  
-   `COMBO-02` leads in multi-threaded Zipfian read throughput (**111.19 Mops/s** on 8T, **172.97 Mops/s** on 16T) and guarantees 100% exactness even if more than 16 classes emerge via its `0x0F` escape table.
-4. **Production Recommendation:**  
-   Deploy **`SEM-CLASS4-003` with lazy `COMBO-02` sparse escape handling**, giving the best of both worlds: 45.77 Mops/s lock-free writes on the 8 common classes, with seamless open-world safety.
+2. **Resolution of Latency Timer Quantization:**  
+   The 100 ns p50 reported in earlier phases was an artifact of the Windows 10 MHz timer quantum. With 100-query batch sampling, `SEM-CLASS4-003` achieves **21.0 ns p50** (26.4 ns mean), while `PROD-CANDIDATE-4BIT-EXCEPTION-SEQLOCK-001` achieves **53.0 ns p50** (60.6 ns mean).
+3. **Seqlock Concurrency Trade-Off:**  
+   `PROD-01` incorporates 48,829 seqlock page sequences and page monitor locks (1.91 MB metadata). This reduces single-thread read throughput from 37.85 Mops/s to 16.50 Mops/s, but provides 100% linearizable tear-free reads across dense nibbles and sparse exception tables under continuous concurrent writes.
+4. **Definitive Production Recommendation:**  
+   Deploy **`PROD-CANDIDATE-4BIT-EXCEPTION-SEQLOCK-001`**. It satisfies all 10 production gates with 100% answer parity, 26.95 MB memory footprint, and >85 Mops/s multi-threaded throughput.
