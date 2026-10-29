@@ -1,0 +1,77 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T17:31:26.9159897Z",
+  "TotalRecordsScanned": 50000000,
+  "DistinctPatternsObserved": 8,
+  "StreamingSha256Digest": "265D6E5AEC71F23EA24C7D74B6D6F60C8897411A0838028833DB72331BC5E3CA",
+  "ScanDurationSeconds": 51.3329657,
+  "ScanRecordsPerSecond": 974032.9497463654,
+  "PatternDistribution": [
+    {
+      "Pattern": 128,
+      "Hex": "0x80",
+      "Binary": "10000000",
+      "Count": 22500241,
+      "Percentage": 45.000482,
+      "SemanticDescription": "Active, Balance \u003C 100 (Micro Tier)"
+    },
+    {
+      "Pattern": 193,
+      "Hex": "0xC1",
+      "Binary": "11000001",
+      "Count": 22500137,
+      "Percentage": 45.000274,
+      "SemanticDescription": "Active, 100 \u003C= Balance \u003C 250 (Basic Tier)"
+    },
+    {
+      "Pattern": 0,
+      "Hex": "0x00",
+      "Binary": "00000000",
+      "Count": 2499756,
+      "Percentage": 4.999512,
+      "SemanticDescription": "Inactive, Balance \u003C 100"
+    },
+    {
+      "Pattern": 1,
+      "Hex": "0x01",
+      "Binary": "00000001",
+      "Count": 2499753,
+      "Percentage": 4.999506,
+      "SemanticDescription": "Inactive, 100 \u003C= Balance \u003C 500"
+    },
+    {
+      "Pattern": 251,
+      "Hex": "0xFB",
+      "Binary": "11111011",
+      "Count": 100,
+      "Percentage": 0.0002,
+      "SemanticDescription": "Active, 750 \u003C= Balance \u003C 900 (Upper Tier)"
+    },
+    {
+      "Pattern": 243,
+      "Hex": "0xF3",
+      "Binary": "11110011",
+      "Count": 5,
+      "Percentage": 1E-05,
+      "SemanticDescription": "Active, 500 \u003C= Balance \u003C 750 (Mid Tier)"
+    },
+    {
+      "Pattern": 255,
+      "Hex": "0xFF",
+      "Binary": "11111111",
+      "Count": 5,
+      "Percentage": 1E-05,
+      "SemanticDescription": "Active, Balance \u003E= 900 (High Tier)"
+    },
+    {
+      "Pattern": 3,
+      "Hex": "0x03",
+      "Binary": "00000011",
+      "Count": 3,
+      "Percentage": 6E-06,
+      "SemanticDescription": "Inactive, Balance \u003E= 500"
+    }
+  ],
+  "MatchesPreviousReport": true,
+  "OracleParityMismatches": 0,
+  "SampledChecksCount": 11000
+}

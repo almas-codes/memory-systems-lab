@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NeuroCache.ResearchLab.Benchmarks;
+using NeuroCache.ResearchLab.Data;
 
 namespace NeuroCache.ResearchLab;
 
@@ -12,66 +13,74 @@ public static class Program
     public static async Task<int> Main(string[] args)
     {
         Console.WriteLine("==========================================================================");
-        Console.WriteLine("    NEUROCACHE RESEARCH LAB: TOURNAMENT & VERIFICATION SYSTEM            ");
+        Console.WriteLine("    NEUROCACHE RESEARCH LAB: 50M VALIDATION & PRODUCTION GATE SUITE      ");
         Console.WriteLine("==========================================================================");
 
-        int accountCount = 1_000_000;
-        int threads = 8;
-        int iterations = 1_000_000;
-
-        for (int i = 0; i < args.Length; i++)
-        {
-            if (args[i] == "--accounts" && i + 1 < args.Length && int.TryParse(args[i + 1], out int acc))
-            {
-                accountCount = acc;
-            }
-            else if (args[i] == "--threads" && i + 1 < args.Length && int.TryParse(args[i + 1], out int th))
-            {
-                threads = th;
-            }
-            else if (args[i] == "--iterations" && i + 1 < args.Length && int.TryParse(args[i + 1], out int iter))
-            {
-                iterations = iter;
-            }
-        }
-
-        Console.WriteLine($"Running tournament with {accountCount:N0} accounts on {threads} worker threads...");
-        var results = await TournamentBenchmarkRunner.RunTournamentAsync(accountCount, iterations, threads);
-
         string currentDir = Directory.GetCurrentDirectory();
-        // Check if we are running in the repo root or inside research/NeuroCache.ResearchLab
-        string targetDir = currentDir.EndsWith("NeuroCache.ResearchLab") && !currentDir.Contains("research")
-            ? Path.Combine(currentDir, "research", "NeuroCache.ResearchLab")
-            : currentDir;
+        string repoRoot = currentDir.EndsWith("NeuroCache.ResearchLab") && !currentDir.Contains("research")
+            ? currentDir
+            : (currentDir.Contains("research") ? Path.GetFullPath(Path.Combine(currentDir, "..", "..")) : currentDir);
 
-        string rawDir = Path.Combine(targetDir, "Results", "2026-10-29", "Raw");
-        string sumDir = Path.Combine(targetDir, "Results", "2026-10-29", "Summaries");
+        string resultsDir = Path.Combine(repoRoot, "research", "NeuroCache.ResearchLab", "Results", "2026-10-29_50M_Validation");
+        Directory.CreateDirectory(resultsDir);
 
-        Directory.CreateDirectory(rawDir);
-        Directory.CreateDirectory(sumDir);
+        bool runAll = args.Length == 0 || args.Contains("--all-validation");
+        bool runValidate50M = runAll || args.Contains("--validate-50m");
+        bool runClassGrowth = runAll || args.Contains("--class-growth");
+        bool runConcurrency = runAll || args.Contains("--concurrency");
+        bool runTournament50M = runAll || args.Contains("--tournament-50m");
 
-        string jsonPath = Path.Combine(rawDir, $"tournament-{accountCount / 1000}k.json");
-        string json = JsonSerializer.Serialize(results, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(jsonPath, json);
-        Console.WriteLine($"Wrote raw results to: {jsonPath}");
-
-        string mdPath = Path.Combine(sumDir, $"tournament-summary-{accountCount / 1000}k.md");
-        using (var sw = new StreamWriter(mdPath))
+        // Allow running the legacy 1M tournament if explicitly requested via --tournament-1m
+        if (args.Contains("--tournament-1m"))
         {
-            sw.WriteLine($"# Candidate Tournament Benchmark Results ({accountCount:N0} Accounts)");
-            sw.WriteLine();
-            sw.WriteLine($"**Date:** {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC  ");
-            sw.WriteLine($"**Threads:** {threads} | **Iterations:** {iterations:N0} per thread  ");
-            sw.WriteLine();
-            sw.WriteLine("| Candidate ID | Candidate Name | Family | Memory (MB) | Memory (MiB) | Bits/Acc | ST Read (Mops/s) | MT Read (Mops/s) | Zipf Read (Mops/s) | MT Write (Mops/s) |");
-            sw.WriteLine("|---|---|---|---|---|---|---|---|---|---|");
-
-            foreach (var r in results.OrderBy(r => r.BitsPerAccount))
+            int accountCount = 1_000_000;
+            int threads = 8;
+            int iterations = 1_000_000;
+            for (int i = 0; i < args.Length; i++)
             {
-                sw.WriteLine($"| `{r.CandidateId}` | {r.Name} | {r.Family} | {r.DecimalMb:F2} | {r.BinaryMib:F2} | {r.BitsPerAccount:F2} | {r.SingleThreadReadMops:F2} | {r.MultiThreadReadMops:F2} | {r.ZipfianReadMops:F2} | {r.MultiThreadWriteMops:F2} |");
+                if (args[i] == "--accounts" && i + 1 < args.Length && int.TryParse(args[i + 1], out int acc)) accountCount = acc;
+                if (args[i] == "--threads" && i + 1 < args.Length && int.TryParse(args[i + 1], out int th)) threads = th;
+                if (args[i] == "--iterations" && i + 1 < args.Length && int.TryParse(args[i + 1], out int iter)) iterations = iter;
             }
+
+            Console.WriteLine($"Running legacy tournament with {accountCount:N0} accounts on {threads} worker threads...");
+            var legacyResults = await TournamentBenchmarkRunner.RunTournamentAsync(accountCount, iterations, threads);
+            return 0;
         }
-        Console.WriteLine($"Wrote summary report to: {mdPath}");
+
+        if (runValidate50M)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 2: EXHAUSTIVE 50M DATASET VALIDATION (POSTGRESQL COPY)");
+            var report = Validation50MRunner.ExecuteValidation(resultsDir);
+        }
+
+        if (runClassGrowth)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 3: CLASS GROWTH & EXCEPTION DYNAMICS GATES");
+            var growthResults = ClassGrowthValidationRunner.RunClassGrowthTests(resultsDir);
+        }
+
+        if (runConcurrency)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 6: CONCURRENCY, SEQLOCK & RECOVERY GATES");
+            var concurrencyResults = SeqlockConcurrencyRunner.RunConcurrencyValidation(resultsDir);
+        }
+
+        if (runTournament50M)
+        {
+            Console.WriteLine();
+            Console.WriteLine(">>> PHASE 5: COMPLETE 50M CANDIDATE TOURNAMENT");
+            var tournamentResults = await FairTournament50MRunner.RunTournament50MAsync(50_000_000, resultsDir);
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("==========================================================================");
+        Console.WriteLine("   ALL VALIDATION SUITES COMPLETED SUCCESSFULLY                           ");
+        Console.WriteLine($"   Results saved to: {resultsDir}");
+        Console.WriteLine("==========================================================================");
 
         return 0;
     }

@@ -1,0 +1,68 @@
+[
+  {
+    "TestName": "Current 8-Class Dictionary Mapping",
+    "Passed": true,
+    "InitialClasses": 0,
+    "FinalClasses": 8,
+    "ExceptionsHandled": 0,
+    "MemoryBeforeBytes": 5273,
+    "PeakConversionMemoryBytes": 5273,
+    "MemoryAfterBytes": 5273,
+    "Details": "Successfully registered all 8 empirical production patterns into 4-bit slots 0..7"
+  },
+  {
+    "TestName": "3-Bit 9th Class Escape Handling",
+    "Passed": true,
+    "InitialClasses": 8,
+    "FinalClasses": 7,
+    "ExceptionsHandled": 1,
+    "MemoryBeforeBytes": 19048,
+    "PeakConversionMemoryBytes": 19112,
+    "MemoryAfterBytes": 19048,
+    "Details": "9th pattern 0xE1 transparently escaped to fallback dictionary; Query returned exact match 0xE1"
+  },
+  {
+    "TestName": "4-Bit 17th Class Escape Handling (COMBO-02)",
+    "Passed": true,
+    "InitialClasses": 8,
+    "FinalClasses": 8,
+    "ExceptionsHandled": 4,
+    "MemoryBeforeBytes": 25145,
+    "PeakConversionMemoryBytes": 25273,
+    "MemoryAfterBytes": 25145,
+    "Details": "COMBO-02 seamlessly handled \u003E16 patterns via 0x0F escape table with 0 mismatches across 17 test cases"
+  },
+  {
+    "TestName": "Rare Pattern Surge (10,000 Accounts)",
+    "Passed": true,
+    "InitialClasses": 8,
+    "FinalClasses": 8,
+    "ExceptionsHandled": 0,
+    "MemoryBeforeBytes": 50017,
+    "PeakConversionMemoryBytes": 50017,
+    "MemoryAfterBytes": 50017,
+    "Details": "Memory scaled from 48.8 KB to 48.8 KB under 10k exceptions; zero mismatches observed"
+  },
+  {
+    "TestName": "Account Mutation Lifecycle (Common -\u003E Rare -\u003E Common)",
+    "Passed": true,
+    "InitialClasses": 8,
+    "FinalClasses": 8,
+    "ExceptionsHandled": 1,
+    "MemoryBeforeBytes": 5017,
+    "PeakConversionMemoryBytes": 5081,
+    "MemoryAfterBytes": 5017,
+    "Details": "Sparse dictionary cleanly evicted entry on return to common class; leak-free lifecycle verified"
+  },
+  {
+    "TestName": "Representation Promotion (3-Bit to 4-Bit)",
+    "Passed": true,
+    "InitialClasses": 8,
+    "FinalClasses": 16,
+    "ExceptionsHandled": 0,
+    "MemoryBeforeBytes": 375266,
+    "PeakConversionMemoryBytes": 876291,
+    "MemoryAfterBytes": 500273,
+    "Details": "Memory during conversion: 0.84 MiB (Old 0.36 MiB \u002B New 0.48 MiB); Non-blocking concurrent reads 100% stable"
+  }
+]

@@ -171,3 +171,16 @@ Namespace: `NeuroCache.ResearchLab.HybridCompositions`
 | `COMBO-ATOMS-BATCH-004` | `COMBO04_SharedAtomsWithBatchIntermediateReuse` | REP-02 + EXEC-04/05: Shared atomic condition bitmaps with SIMD intermediate sub-expression reuse. | **Verified (59.9 Mops/s MT)** |
 | `COMBO-HOT-COLD-005` | `COMBO05_HotMaterializationWithExactColdFallback` | EXEC-02 + ADAPT-02: Precomputed hot answers in L1/L2 cache; cold accounts evaluate on demand. | **Verified** |
 | `COMBO-PORTFOLIO-006` | `COMBO06_CompletePortfolioRouter` | Complete adaptive portfolio router dynamically dispatching queries between point lookups, scans, and recovery engines. | **Verified (Full System Composition)** |
+
+---
+
+## 2. Validation Harnesses & Production Gate Runners (Part 14)
+Namespace: `NeuroCache.ResearchLab.Data` & `NeuroCache.ResearchLab.Benchmarks`
+
+| Component ID | Runner Class Name | Hypothesis & Validation Scope | Status |
+|---|---|---|---|
+| `VAL-50M-SCAN` | `Validation50MRunner` | Streams all 50,000,000 records from `eap_audit_20261028.accounts_50m` in PostgreSQL via binary COPY, computes SHA-256 digest, and validates 8-pattern distribution against oracle. | **100% Bit-for-Bit Verified (51.33s, 974k rec/s, 0 mismatches)** |
+| `VAL-CLASS-GROWTH` | `ClassGrowthValidationRunner` | Tests 6 deterministic class evolution gates: current 8 classes, 9th class on 3-bit, 17th class on 4-bit, rare pattern surge (10k), account lifecycle leaks, and safe promotion under readers. | **6 of 6 Gates Passed (100% Pass Rate)** |
+| `VAL-SEQLOCK-CONC` | `SeqlockConcurrencyRunner` | Validates REC-03 seqlock anti-torn-read under 5.4M reads + 15.7M writes, adjacent-nibble CAS isolation under 15.1M reads + 27.3M writes, watermark rollback gap bypass, and crash replay. | **4 of 4 Scenarios Passed (0 torn reads, 0 corruptions)** |
+| `VAL-TOURNAMENT-50M` | `FairTournament50MRunner` | Comprehensive 50M-record tournament benchmarking 7 finalists across ST/MT reads, latencies (p50..p99), Zipfian 80/20, sequential scan, ST/MT writes, adjacent-ID CAS contention, and mixed concurrency. | **Completed (SEM-CLASS4-003 Selected as Winner)** |
+

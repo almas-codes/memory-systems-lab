@@ -1,0 +1,42 @@
+[
+  {
+    "ScenarioName": "REC-03 Seqlock Monotonicity \u0026 Anti-Torn-Read",
+    "Passed": true,
+    "TotalReadOps": 5401465,
+    "TotalWriteOps": 15707473,
+    "RetriesObserved": 0,
+    "TornReadsDetected": 0,
+    "LostWritesDetected": 0,
+    "Details": "Processed 5,401,465 reads and 15,707,473 contended writes; ZERO torn reads detected"
+  },
+  {
+    "ScenarioName": "Adjacent Packed Nibble CAS Isolation",
+    "Passed": true,
+    "TotalReadOps": 15162050,
+    "TotalWriteOps": 27345388,
+    "RetriesObserved": 0,
+    "TornReadsDetected": 0,
+    "LostWritesDetected": 0,
+    "Details": "Simultaneous cross-thread CAS updates to even/odd accounts sharing byte K executed without corruption"
+  },
+  {
+    "ScenarioName": "ContiguousWatermarkTracker Rollback Gap \u0026 Monotonicity",
+    "Passed": true,
+    "TotalReadOps": 0,
+    "TotalWriteOps": 6,
+    "RetriesObserved": 0,
+    "TornReadsDetected": 0,
+    "LostWritesDetected": 0,
+    "Details": "In-flight tracking verified: out-of-order publications held back correctly; rollback gap 5 bypassed safely without stalls"
+  },
+  {
+    "ScenarioName": "Crash Mid-Publication Outbox Replay",
+    "Passed": true,
+    "TotalReadOps": 0,
+    "TotalWriteOps": 50,
+    "RetriesObserved": 0,
+    "TornReadsDetected": 0,
+    "LostWritesDetected": 0,
+    "Details": "Replayed 50 mutations from sequence 1..50; Restored watermark to 50 with zero oracle divergence"
+  }
+]

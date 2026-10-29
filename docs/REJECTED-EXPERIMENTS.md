@@ -58,6 +58,20 @@ This document details the rejected experiments, explaining the exact empirical f
   - Read Throughput: **38.4 Mops/s** (vs 62.8 Mops/s for flat bitmaps).
 - **Why It Failed:**
   In `accounts_50m`, account IDs are dense and contiguous (1..50,000,000). Every 4096-bit chunk had cardinality > 4096 / 16, causing Roaring bitmaps to convert every chunk into a dense bitset. The chunk directory and container object references added 0.2 MB of pointer overhead while introducing an extra pointer indirection on every query.
+
+---
+
+### 2.5. Candidate: `SEM-CLASS3-004` (3-Bit Semantic Classes as Primary Production Engine)
+- **The Hypothesis:** Achieve maximum theoretical compression (3.00 bits/account, 18.75 MB for 50M records, -62.5% reduction) by packing 3-bit semantic classes across byte boundaries.
+- **The Empirical Reality:**
+  - Memory for 50M accounts: **18.75 MB** (17.88 MiB).
+  - Single-Thread Read: **7.39 Mops/s** (vs **37.09 Mops/s** for 4-bit, a **5x slowdown**).
+  - Single-Thread Write: **3.51 Mops/s** (vs **45.77 Mops/s** for 4-bit, a **13x slowdown**).
+  - Adjacent-ID Contention Write: **31.32 Mops/s** (vs **169.20 Mops/s** for 4-bit).
+- **Why It Was Rejected for Primary Cache:**
+  Packing 3 bits into a continuous bitstream means that 3 out of every 8 accounts cross a physical byte boundary. Reading a boundary account requires two memory accesses, shifting, and a branch (`bitOffset <= 5`). Worse, updating an account crossing a byte boundary cannot be performed using a single hardware atomic CAS; it requires taking coarse stripe locks over shared boundary bytes, inducing thread serialization under concurrent writers.
+- **Verdict:** **REJECTED** as primary operational cache engine. Retained as an archive or secondary read-only tier where memory is the sole constraint.
+
 - **Verdict:** **REJECTED** for dense sequential database primary keys. Roaring bitmaps are advantageous only when primary keys are highly sparse or fragmented.
 
 ---

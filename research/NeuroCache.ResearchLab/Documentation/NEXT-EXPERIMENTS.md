@@ -8,7 +8,7 @@
 
 ## 1. Executive Summary
 
-Having established that **`COMBO-02` (4-Bit Semantic Classes with Sparse Exceptions)** and **`REC-03` (Seqlock Page Publication)** form the optimal architectural foundation for 50,000,000 records, this document outlines the next experimental roadmap to scale the technology toward 500M records and distributed multi-node production deployment.
+Having rigorously validated that **`SEM-CLASS4-003` (4-Bit Semantic Classes with Lazy Sparse Exception Escape)** and **`REC-03` (Seqlock Page Publication)** form the optimal architectural foundation across all 50,000,000 records of `accounts_50m` (92–100 Mops/s MT read, 45.77 Mops/s ST write, 169.2 Mops/s adjacent CAS, 25.00 MB total memory), this document outlines the post-acceptance experimental roadmap to scale the technology toward 500M records and distributed multi-node production deployment.
 
 ---
 
