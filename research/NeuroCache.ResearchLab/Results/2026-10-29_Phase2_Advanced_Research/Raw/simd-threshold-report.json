@@ -1,0 +1,68 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T18:43:27.1056091Z",
+  "ExperimentId": "SIMD-BITSLICE-001",
+  "Hardware": {
+    "HostCpuModel": "AMD Ryzen 7 5825U (Zen 3 Cezanne, 8C/16T, 16 MB L3)",
+    "ScalarSupported": true,
+    "Avx2Supported": true,
+    "Avx512FSupported": false,
+    "Avx512BwSupported": false,
+    "StatusMessage": "AVX2 supported; AVX-512 hardware absent on Zen 3 (safe fallback active)"
+  },
+  "ScalarDirect": {
+    "EvaluatorName": "Scalar Direct Column",
+    "RecordCount": 10000000,
+    "MatchCount": 2498266,
+    "ElapsedMilliseconds": 64.6689,
+    "RecordsPerSecond": 154633834.81085962,
+    "MeanLatencyNsPerRecord": 6.46689,
+    "MatchesOracle": true
+  },
+  "Avx2Direct": {
+    "EvaluatorName": "AVX2 Direct SIMD Column",
+    "RecordCount": 10000000,
+    "MatchCount": 2498266,
+    "ElapsedMilliseconds": 90.2685,
+    "RecordsPerSecond": 110780615.60788094,
+    "MeanLatencyNsPerRecord": 9.02685,
+    "MatchesOracle": true
+  },
+  "BitSlicedScalar": {
+    "EvaluatorName": "Bit-Sliced Scalar (64-bit PopCount)",
+    "RecordCount": 10000000,
+    "MatchCount": 2498266,
+    "ElapsedMilliseconds": 4.8364,
+    "RecordsPerSecond": 2067653626.6644611,
+    "MeanLatencyNsPerRecord": 0.48364,
+    "MatchesOracle": true
+  },
+  "BitSlicedAvx2": {
+    "EvaluatorName": "Bit-Sliced AVX2 SIMD",
+    "RecordCount": 10000000,
+    "MatchCount": 2498266,
+    "ElapsedMilliseconds": 5.2267,
+    "RecordsPerSecond": 1913253104.2531617,
+    "MeanLatencyNsPerRecord": 0.52267,
+    "MatchesOracle": true
+  },
+  "Avx512Status": "UNMEASURED (Blocked by Hardware: Host AMD Ryzen 7 5825U Zen 3 architecture lacks AVX-512 ISA)",
+  "SemanticClassScan": {
+    "EvaluatorName": "Semantic Class (PROD01 Q4 Precomputed)",
+    "RecordCount": 10000000,
+    "MatchCount": 2498266,
+    "ElapsedMilliseconds": 123.7846,
+    "RecordsPerSecond": 80785493.51050131,
+    "MeanLatencyNsPerRecord": 12.37846,
+    "MatchesOracle": true
+  },
+  "PostgresParallelScan": {
+    "EvaluatorName": "PostgreSQL 17.2 Parallel Scan (50M)",
+    "RecordCount": 50000000,
+    "MatchCount": 113,
+    "ElapsedMilliseconds": 4714.3289,
+    "RecordsPerSecond": 10605963.449007556,
+    "MeanLatencyNsPerRecord": 94.286578,
+    "MatchesOracle": true
+  },
+  "OverallCorrectness": true
+}

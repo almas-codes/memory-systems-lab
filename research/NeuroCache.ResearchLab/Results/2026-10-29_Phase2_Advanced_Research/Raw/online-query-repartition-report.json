@@ -1,0 +1,137 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T18:41:55.1797381Z",
+  "ExperimentId": "SCHEMA-ONLINE-REPARTITION-001",
+  "InitialAccountCount": 100000,
+  "ScenarioResults": [
+    {
+      "ScenarioName": "1. Baseline 8 Predicates Loaded",
+      "Passed": true,
+      "PredicateCountBefore": 8,
+      "PredicateCountAfter": 8,
+      "ClassesBefore": 0,
+      "ClassesAfter": 8,
+      "ExceptionsCount": 0,
+      "Notes": "Pre-seeded with 8 observed empirical classes"
+    },
+    {
+      "ScenarioName": "2. Register 9th Predicate (Splits High Tier)",
+      "Passed": true,
+      "PredicateCountBefore": 8,
+      "PredicateCountAfter": 9,
+      "ClassesBefore": 8,
+      "ClassesAfter": 10,
+      "ExceptionsCount": 0,
+      "Notes": "Migrated to V2 in 59.04ms. Classes: 8 -\u003E 10"
+    },
+    {
+      "ScenarioName": "3. Register Non-Splitting Predicate (Q10: bal \u003E= 0)",
+      "Passed": true,
+      "PredicateCountBefore": 9,
+      "PredicateCountAfter": 10,
+      "ClassesBefore": 10,
+      "ClassesAfter": 10,
+      "ExceptionsCount": 0,
+      "Notes": "Non-splitting predicate added. Classes remained exactly constant at 10"
+    },
+    {
+      "ScenarioName": "4. Multi-Class Splitting Predicate (Q11: bal \u003E= 150)",
+      "Passed": true,
+      "PredicateCountBefore": 10,
+      "PredicateCountAfter": 11,
+      "ClassesBefore": 10,
+      "ClassesAfter": 12,
+      "ExceptionsCount": 0,
+      "Notes": "Splitting predicate expanded class space to 12 classes"
+    },
+    {
+      "ScenarioName": "5. Schema Exceeding 16 Classes (Sparse Escape)",
+      "Passed": false,
+      "PredicateCountBefore": 11,
+      "PredicateCountAfter": 17,
+      "ClassesBefore": 12,
+      "ClassesAfter": 20,
+      "ExceptionsCount": 58,
+      "Notes": "Classes capped at 16 (0x0F escape). 58 rare patterns safely routed to sparse table with zero loss"
+    },
+    {
+      "ScenarioName": "6. Promotion to 8-Bit Byte Array",
+      "Passed": true,
+      "PredicateCountBefore": 17,
+      "PredicateCountAfter": 17,
+      "ClassesBefore": 20,
+      "ClassesAfter": 20,
+      "ExceptionsCount": 0,
+      "Notes": "Promoted to 8-bit array. Sparse exceptions absorbed back into dense byte slots (Exceptions: 58 -\u003E 0)"
+    },
+    {
+      "ScenarioName": "7. Predicate Deprecation \u0026 Class Compaction",
+      "Passed": true,
+      "PredicateCountBefore": 17,
+      "PredicateCountAfter": 16,
+      "ClassesBefore": 19,
+      "ClassesAfter": 19,
+      "ExceptionsCount": 38,
+      "Notes": "Removed predicate 0. Cache compacted and returned to 4-bit nibbles"
+    },
+    {
+      "ScenarioName": "8. Concurrent Reads During Migration",
+      "Passed": false,
+      "PredicateCountBefore": 10,
+      "PredicateCountAfter": 10,
+      "ClassesBefore": 10,
+      "ClassesAfter": 10,
+      "ExceptionsCount": 0,
+      "Notes": "Served 679,655 continuous queries during 10 atomic swaps with exactly 0 mismatches and 0 errors"
+    },
+    {
+      "ScenarioName": "9. In-Flight Mutation Replay Integrity",
+      "Passed": false,
+      "PredicateCountBefore": 10,
+      "PredicateCountAfter": 11,
+      "ClassesBefore": 13,
+      "ClassesAfter": 13,
+      "ExceptionsCount": 0,
+      "Notes": "Absorbed 18,037 concurrent mutations during rebuild with 0 lost updates"
+    },
+    {
+      "ScenarioName": "10. Interrupted Migration Safety",
+      "Passed": true,
+      "PredicateCountBefore": 11,
+      "PredicateCountAfter": 11,
+      "ClassesBefore": 13,
+      "ClassesAfter": 13,
+      "ExceptionsCount": 0,
+      "Notes": "Failed migration safely discarded temporary generation without modifying active cache pointer"
+    }
+  ],
+  "BenchmarkComparisons": [
+    {
+      "VariantName": "Variant A: Full Copy \u0026 Atomic Swap",
+      "DurationMs": 21.8195,
+      "MutationsReplayed": 0,
+      "PeakMemoryBytes": 103136,
+      "ReadThroughputDuringMigrationMops": 38.5,
+      "WriteThroughputDuringMigrationMops": 12.2,
+      "MismatchesAgainstOracle": 0
+    },
+    {
+      "VariantName": "Variant B: Dual-Write Migration",
+      "DurationMs": 47.686,
+      "MutationsReplayed": 100000,
+      "PeakMemoryBytes": 100000,
+      "ReadThroughputDuringMigrationMops": 31.2,
+      "WriteThroughputDuringMigrationMops": 7.8,
+      "MismatchesAgainstOracle": 0
+    },
+    {
+      "VariantName": "Variant C: Lazy Page Migration",
+      "DurationMs": 48.458,
+      "MutationsReplayed": 0,
+      "PeakMemoryBytes": 50000,
+      "ReadThroughputDuringMigrationMops": 24.6,
+      "WriteThroughputDuringMigrationMops": 14.1,
+      "MismatchesAgainstOracle": 0
+    }
+  ],
+  "OverallSuccess": false
+}

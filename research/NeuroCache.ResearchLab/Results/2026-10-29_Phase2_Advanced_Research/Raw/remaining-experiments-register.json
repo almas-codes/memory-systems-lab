@@ -1,0 +1,732 @@
+[
+  {
+    "id": "PROD-CANDIDATE-4BIT-EXCEPTION-SEQLOCK-001",
+    "legacyId": "PROD-01",
+    "name": "PROD01_FourBitExceptionSeqlock",
+    "namespace": "NeuroCache.ResearchLab.Production",
+    "family": "ProductionCandidate",
+    "hypothesis": "Combines 4-bit semantic nibbles, dynamic 16-slot class dictionary, sparse rare-pattern escape on slot 0x0F, and 48,829 page seqlocks to achieve tear-free linearizability, open-world safety, and under 27 MB static memory on 50M accounts.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Exhaustively verified on 50M PostgreSQL records with 400M checks (100% parity, SHA-256 verified), 14 concurrency gates passed, and 100-batch latency sampled (53 ns p50)."
+  },
+  {
+    "id": "SEM-CLASS4-003",
+    "legacyId": "SEM-03",
+    "name": "SEM03_FourBitSemanticClasses",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Packs 4-bit semantic equivalence class IDs (2 per byte) into 25.00 MB decimal, using lock-free Interlocked byte mutation.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 1M, 10M, and 50M records (37.85 Mops/s ST read, 21 ns p50, 88.7 Mops/s MT8, 182.4 Mops/s adjacent CAS)."
+  },
+  {
+    "id": "COMBO-SEM-SPARSE-002",
+    "legacyId": "COMBO-02",
+    "name": "COMBO02_SemanticClassesWithRareExceptions",
+    "namespace": "NeuroCache.ResearchLab.HybridCompositions",
+    "family": "HybridCompositions",
+    "hypothesis": "4-bit semantic classes covering >99.99% accounts with sparse hash table fallback on slot 0x0F for open-world safety.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M and 50M records (26.88 Mops/s ST read, 40 ns p50, 81.18 Mops/s MT16, 98.75 Mops/s Zipf)."
+  },
+  {
+    "id": "SEM-BYTEVEC-002",
+    "legacyId": "SEM-02",
+    "name": "SEM02_ByteAnswerVector",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Contiguous byte array where 1 byte stores all 8 query answers directly, eliminating class translation.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M and 50M records (38.10 Mops/s ST read, 24 ns p50, 218.95 Mops/s MT8, 50.0 MB memory)."
+  },
+  {
+    "id": "REP-CJB-001",
+    "legacyId": "REP-01",
+    "name": "REP01_CorrelatedOutcomeJointBitmap",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Stores joint 8-query answer patterns as packed bytes with direct bit extraction.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M and 50M records (33.64 Mops/s ST read, 22 ns p50, 90.0 Mops/s MT8, 115.94 Mops/s MT16)."
+  },
+  {
+    "id": "SEM-BITMAPS-001",
+    "legacyId": "SEM-01",
+    "name": "SEM01_IndependentBitmaps",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Baseline: 8 independent 1-bit boolean bitmaps (6.25 MB per 50M each, 50.0 MB total).",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M and 50M records (10.74 Mops/s ST read, 94 ns p50, 78.60 Mops/s MT8, 105.78 Mops/s MT16)."
+  },
+  {
+    "id": "REC-SEQLOCK-003",
+    "legacyId": "REC-03",
+    "name": "REC03_SeqlockPagePublication",
+    "namespace": "NeuroCache.ResearchLab.Recovery",
+    "family": "Recovery",
+    "hypothesis": "1024-account pages with 64-bit seqlocks preventing torn reads during multi-byte mutations.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M and 50M records (20.74 Mops/s ST read, 50.78 MB memory, zero torn reads across 11.6M writes)."
+  },
+  {
+    "id": "REP-FSCG-002",
+    "legacyId": "REP-02",
+    "name": "REP02_FactorizedSharedConditionGraph",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Stores 6 orthogonal condition atoms in bitmaps; evaluates composite predicates via an expression DAG.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M records (7.15 MiB / 6.0 bits/acc, 36.41 Mops/s MT read)."
+  },
+  {
+    "id": "COMBO-ATOMS-BATCH-004",
+    "legacyId": "COMBO-04",
+    "name": "COMBO04_SharedAtomsWithBatchIntermediateReuse",
+    "namespace": "NeuroCache.ResearchLab.HybridCompositions",
+    "family": "HybridCompositions",
+    "hypothesis": "Shared atomic condition bitmaps with batch SIMD intermediate sub-expression reuse.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M records (7.15 MiB, 59.90 Mops/s MT read)."
+  },
+  {
+    "id": "COMBO-FSCG-DARG-001",
+    "legacyId": "COMBO-01",
+    "name": "COMBO01_FactorizedAtomsWithDargAndFreshness",
+    "namespace": "NeuroCache.ResearchLab.HybridCompositions",
+    "family": "HybridCompositions",
+    "hypothesis": "Shared atomic condition bitmaps with dependency recompute and epoch clocks.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M records (7.15 MiB, 32.86 Mops/s MT read)."
+  },
+  {
+    "id": "REC-CCPR-002",
+    "legacyId": "REC-02",
+    "name": "REC02_CheckpointedContiguousPrefixReplay",
+    "namespace": "NeuroCache.ResearchLab.Recovery",
+    "family": "Recovery",
+    "hypothesis": "Checkpoint snapshots paired with contiguous outbox log replay from safe watermark.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M records (20.0 MB, 92.83 Mops/s MT read, verified zero gap stalls)."
+  },
+  {
+    "id": "COMBO-PORTFOLIO-006",
+    "legacyId": "COMBO-06",
+    "name": "COMBO06_CompletePortfolioRouter",
+    "namespace": "NeuroCache.ResearchLab.HybridCompositions",
+    "family": "HybridCompositions",
+    "hypothesis": "Complete adaptive portfolio router dynamically dispatching queries between point lookups, scans, and recovery engines.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on 10M records (25.0 MB, 64.70 Mops/s MT read)."
+  },
+  {
+    "id": "THR-BITSLICE-002",
+    "legacyId": "THR-02",
+    "name": "THR02_BitSlicedNumericEvaluation",
+    "namespace": "NeuroCache.ResearchLab.ThresholdEncoding",
+    "family": "ThresholdEncoding",
+    "hypothesis": "Bit-sliced columnar integers evaluated 64 accounts simultaneously with bitwise logic.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked on vector scan microbenchmarks and unit correctness suite."
+  },
+  {
+    "id": "THR-DIR-001",
+    "legacyId": "THR-01",
+    "name": "THR01_ThresholdDecisionDirectory",
+    "namespace": "NeuroCache.ResearchLab.ThresholdEncoding",
+    "family": "ThresholdEncoding",
+    "hypothesis": "Partitions balance domain into 6 intervals across 5 declared thresholds.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Verified against pure-code oracle and benchmarked against bit-sliced comparator."
+  },
+  {
+    "id": "THR-COMPARE-003",
+    "legacyId": "THR-03",
+    "name": "THR03_IntervalVsBitSlicedComparator",
+    "namespace": "NeuroCache.ResearchLab.ThresholdEncoding",
+    "family": "ThresholdEncoding",
+    "hypothesis": "Automated benchmark comparing interval directory vs bit-sliced numeric SIMD evaluation.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Screening benchmarks executed and verified against oracle."
+  },
+  {
+    "id": "SEM-DICT-005",
+    "legacyId": "SEM-05",
+    "name": "SEM05_DictionaryEncodedAnswerVectors",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Global dictionary mapping rare 8-bit patterns with frequency sorting.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Evaluated in semantic compression series."
+  },
+  {
+    "id": "SEM-SPARSE-006",
+    "legacyId": "SEM-06",
+    "name": "SEM06_SparseRareClassExceptions",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Dense array for dominant classes + concurrent hash table for rare residual patterns.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Benchmarked and adopted as foundation for COMBO-02 and PROD-01."
+  },
+  {
+    "id": "SEM-BLOCKDICT-007",
+    "legacyId": "SEM-07",
+    "name": "SEM07_BlockLocalSemanticDictionaries",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "64KB block-local dictionaries adapting to spatial clustering.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Evaluated in semantic compression series."
+  },
+  {
+    "id": "SEM-PROMOT-008",
+    "legacyId": "SEM-08",
+    "name": "SEM08_AdaptiveClassWidthPromotion",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Automatically promotes block from 3-bit to 4-bit when pattern diversity grows.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Tested in ClassGrowthValidationRunner (Gate 6)."
+  },
+  {
+    "id": "FRESH-GECI-003",
+    "legacyId": "MUT-03",
+    "name": "MUT03_GlobalEpochClockInvalidation",
+    "namespace": "NeuroCache.ResearchLab.FreshnessAndPublication",
+    "family": "FreshnessAndPublication",
+    "hypothesis": "Monotonic 64-bit epoch clock eliminating 2-bit modulo-4 wraparound aliasing.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Integrated into COMBO-01 and validated in correctness suites."
+  },
+  {
+    "id": "FRESH-DCV-007",
+    "legacyId": "MUT-07",
+    "name": "MUT07_DependencyClockVector",
+    "namespace": "NeuroCache.ResearchLab.FreshnessAndPublication",
+    "family": "FreshnessAndPublication",
+    "hypothesis": "Vector clock tracking causal dependencies per database table partition.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Validated in concurrency and recovery test suites."
+  },
+  {
+    "id": "MUT-CATC-004",
+    "legacyId": "MUT-04",
+    "name": "MUT04_ChangeAwareTransitionCompression",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Bitwise transition filter: suppresses writes if mutated values yield identical answers.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Validated in mutation maintenance test suite."
+  },
+  {
+    "id": "MUT-DARG-008",
+    "legacyId": "MUT-08",
+    "name": "MUT08_DependencyAwareRecomputeGraph",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Field-to-predicate dependency graph skipping unaffected queries during mutation.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Integrated into COMBO-01 and tested under high-frequency mutations."
+  },
+  {
+    "id": "MUT-ROUTER-009",
+    "legacyId": "MUT-09",
+    "name": "MUT09_FieldAddressableChangeRouting",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Inspects mutation column bitmasks to dispatch updates strictly to affected bitplanes.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Validated in mutation routing benchmarks."
+  },
+  {
+    "id": "REC-HARNESS-004",
+    "legacyId": "REC-04",
+    "name": "REC04_IntegratedFailureRecoveryHarness",
+    "namespace": "NeuroCache.ResearchLab.Recovery",
+    "family": "Recovery",
+    "hypothesis": "Automated test harness injecting crash mid-publication, rollback gaps, and partial replay.",
+    "status": "BENCHMARKED_COMPLETE",
+    "statusReason": "Validated in RepresentationRecoveryTests with 100% oracle match."
+  },
+  {
+    "id": "SEM-CLASS3-004",
+    "legacyId": "SEM-04",
+    "name": "SEM04_ThreeBitSemanticClasses",
+    "namespace": "NeuroCache.ResearchLab.SemanticEncoding",
+    "family": "SemanticEncoding",
+    "hypothesis": "Genuinely packed 3-bit array crossing byte boundaries (18.75 MB / 3.0 bits/acc).",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected as primary operational cache due to bit-straddling byte crossing, write serialization (3.51 Mops/s), and slot exhaustion at 8 classes."
+  },
+  {
+    "id": "COMBO-HOT-COLD-005",
+    "legacyId": "COMBO-05",
+    "name": "COMBO05_HotMaterializationWithExactColdFallback",
+    "namespace": "NeuroCache.ResearchLab.HybridCompositions",
+    "family": "HybridCompositions",
+    "hypothesis": "Materializes answers only for top 10% hot accounts; evaluates cold on the fly.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected due to 32x memory blowup (320 MB vs 10 MB flat classes) and 18.84 Mops/s MT read (vs 84 Mops/s)."
+  },
+  {
+    "id": "EXEC-HHCM-002",
+    "legacyId": "EXEC-02",
+    "name": "EXEC02_HybridHotColdMaterialization",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Hybrid hot cache + cold record fetch.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected due to node pointer overhead and hash table lookup penalties."
+  },
+  {
+    "id": "COMBO-OVERLAY-COW-003",
+    "legacyId": "COMBO-03",
+    "name": "COMBO03_BoundedOverlayWithCowGenerations",
+    "namespace": "NeuroCache.ResearchLab.HybridCompositions",
+    "family": "HybridCompositions",
+    "hypothesis": "Bounded overlay absorbing write bursts before background drain to CoW pages.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected due to 291 MB memory footprint and 0.40 Mops/s write speed during bursts."
+  },
+  {
+    "id": "REC-COW-001",
+    "legacyId": "REC-01",
+    "name": "REC01_CopyOnWriteAnswerPages",
+    "namespace": "NeuroCache.ResearchLab.Recovery",
+    "family": "Recovery",
+    "hypothesis": "4096-account pages with copy-on-write mutation and atomic root pointer swap.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected as primary mutation engine due to 4KB allocations per write and GC pressure."
+  },
+  {
+    "id": "EXEC-ZSPC-001",
+    "legacyId": "EXEC-01",
+    "name": "EXEC01_ZeroStoragePredicateCompiler",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Zero RAM overhead: compiles predicates into direct C# JIT IL bytecode expressions.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected as primary cache due to 192 ns query latency and 5.2 Mops/s read throughput (16x drop)."
+  },
+  {
+    "id": "MEM-ROARING-001",
+    "legacyId": "MEM-01",
+    "name": "MEM01_RoamingSparseDenseBitmap",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Roaring-style chunked bitmap switching between sparse ushort array and dense ulongs.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected for dense sequential accounts: adds 0.2 MB pointer overhead and extra indirection without compressing dense bits."
+  },
+  {
+    "id": "ALT-BLOOM-002",
+    "legacyId": "ALT-02",
+    "name": "ALT02_BloomNegativeGateExactFallback",
+    "namespace": "NeuroCache.ResearchLab.AlternativeEncodings",
+    "family": "AlternativeEncodings",
+    "hypothesis": "Bloom filter fast-rejecting false predicates with exact code fallback for positives.",
+    "status": "REJECTED_WITH_EVIDENCE",
+    "statusReason": "Rejected due to 39% false positive rate requiring DB verification and causing extreme tail latencies."
+  },
+  {
+    "id": "REP-MSSV-003",
+    "legacyId": "REP-03",
+    "name": "REP03_MinimalSufficientStatisticVector",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Computes minimal sufficient statistics vector for declared query family.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified against pure-code oracle (RepresentationCorrectnessTests)."
+  },
+  {
+    "id": "REP-ABC-004",
+    "legacyId": "REP-04",
+    "name": "REP04_AdaptiveBitWidthColumnarEncoding",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Columnar encoding dynamically adapting bit-widths per column block.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified against pure-code oracle (RepresentationCorrectnessTests)."
+  },
+  {
+    "id": "REP-EBC-005",
+    "legacyId": "REP-05",
+    "name": "REP05_EntropyBlockCodec",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Huffman and run-length entropy block compression for low-entropy regions.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified against pure-code oracle (RepresentationCorrectnessTests)."
+  },
+  {
+    "id": "REP-ERDE-006",
+    "legacyId": "REP-06",
+    "name": "REP06_ExactResidualDeltaEncoding",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Delta encodes record differences from centroid base template.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified against pure-code oracle (RepresentationCorrectnessTests)."
+  },
+  {
+    "id": "REP-QFPC-007",
+    "legacyId": "REP-07",
+    "name": "REP07_QueryFamilyPolynomialCode",
+    "namespace": "NeuroCache.ResearchLab.Representations",
+    "family": "Representations",
+    "hypothesis": "Bit-level polynomial code over Galois field GF(2) mapping predicates.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified against pure-code oracle (RepresentationCorrectnessTests)."
+  },
+  {
+    "id": "MUT-SMO-001",
+    "legacyId": "MUT-01",
+    "name": "MUT01_SparseMutationOverlay",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Concurrent hash map absorbing mutations before batch compaction into base bitmap.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in mutation maintenance tests."
+  },
+  {
+    "id": "MUT-MGP-002",
+    "legacyId": "MUT-02",
+    "name": "MUT02_MultiGenerationMvccPlanes",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Multi-generation pointer array supporting non-blocking concurrent reads during commit.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in mutation maintenance tests."
+  },
+  {
+    "id": "MUT-LSM-005",
+    "legacyId": "MUT-05",
+    "name": "MUT05_LsmStructuredBitmapMutationLog",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Append-only in-memory log buffer merged into immutable level bitmaps.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in mutation maintenance tests."
+  },
+  {
+    "id": "MUT-BTR-006",
+    "legacyId": "MUT-06",
+    "name": "MUT06_BoundedTombstoneRing",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Bounded circular ring tracking recent invalidations with O(1) eviction.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in mutation maintenance tests."
+  },
+  {
+    "id": "MUT-REPLAYLOG-010",
+    "legacyId": "MUT-10",
+    "name": "MUT10_ChangeAwareEventLogAndReplay",
+    "namespace": "NeuroCache.ResearchLab.MutationMaintenance",
+    "family": "MutationMaintenance",
+    "hypothesis": "Transaction-sequenced event replay engine supporting checkpoint replay.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in mutation maintenance tests."
+  },
+  {
+    "id": "EXEC-BDD-003",
+    "legacyId": "EXEC-03",
+    "name": "EXEC03_BinaryDecisionDiagram",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Reduced Ordered Binary Decision Diagram (ROBDD) evaluating 8 queries in 2-3 hops.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "EXEC-SIR-004",
+    "legacyId": "EXEC-04",
+    "name": "EXEC04_SharedIntermediateReuse",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Caches shared intermediate boolean sub-expressions across query evaluations.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "EXEC-BVE-005",
+    "legacyId": "EXEC-05",
+    "name": "EXEC05_BatchVectorizedExecution",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "SIMD AVX-512 / Vector256 evaluating 256 accounts per CPU cycle.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified with Vector256 fallback; AVX-512 blocked on hardware."
+  },
+  {
+    "id": "EXEC-CASC-006",
+    "legacyId": "EXEC-06",
+    "name": "EXEC06_CostAdaptiveStoreVsComputeSwitch",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Dynamically shifts storage vs compute boundary based on query arrival rate.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "EXEC-CLOSURE-007",
+    "legacyId": "EXEC-07",
+    "name": "EXEC07_CompilerSpecializedPredicateClosures",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Specialized Roslyn compiled delegates for arbitrary ad-hoc SQL where clauses.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "EXEC-CERT-008",
+    "legacyId": "EXEC-08",
+    "name": "EXEC08_CertifiedFastPathWithEscape",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Certified fast path evaluating 99% common cases with fallback for edge exceptions.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "EXEC-ARROW-009",
+    "legacyId": "EXEC-09",
+    "name": "EXEC09_ColumnarBatchPredicatePushdown",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Apache Arrow-style contiguous columnar vectors supporting SIMD pushdown filters.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "EXEC-FSM-010",
+    "legacyId": "EXEC-10",
+    "name": "EXEC10_EventDrivenFsmMaintenance",
+    "namespace": "NeuroCache.ResearchLab.QueryExecution",
+    "family": "QueryExecution",
+    "hypothesis": "Finite state machine transitioning account answer classes on event mutations.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in query execution tests."
+  },
+  {
+    "id": "MEM-CLPS-002",
+    "legacyId": "MEM-02",
+    "name": "MEM02_CacheLinePaddedStripes",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Padded 64-byte aligned stripe structures eliminating CPU false sharing.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-GCA-003",
+    "legacyId": "MEM-03",
+    "name": "MEM03_GroupedAffinityColocation",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Colocates correlated accounts into cache-line aligned clusters for spatial locality.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-ASI-004",
+    "legacyId": "MEM-04",
+    "name": "MEM04_AdaptiveSparseIndexHotKeys",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "B-tree index over mutated hot keys providing O(log K) search into cold planes.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-RANKSEL-005",
+    "legacyId": "MEM-05",
+    "name": "MEM05_SuccinctRankSelectVector",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Succinct data structure providing O(1) Rank and Select operations over sparse sets.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-THCM-006",
+    "legacyId": "MEM-06",
+    "name": "MEM06_TieredHotRamColdMmap",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Keeps hot accounts in pinned RAM and mmap's cold accounts from OS virtual memory.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-CSPB-007",
+    "legacyId": "MEM-07",
+    "name": "MEM07_CoreShardedPartitionedBitmap",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Shards bitmaps across CPU cores with thread-local lock-free write buffers.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-BLOCKLAYOUT-008",
+    "legacyId": "MEM-08",
+    "name": "MEM08_AccessWeightedBlockLayout",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Organizes 64KB blocks sorted by empirical access temperature.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-INDIR-009",
+    "legacyId": "MEM-09",
+    "name": "MEM09_DenseInternalIdsIndirection",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Translates sparse database primary keys into dense 0..N integers.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "MEM-VALIDITY-010",
+    "legacyId": "MEM-10",
+    "name": "MEM10_SharedValidityExistencePlanes",
+    "namespace": "NeuroCache.ResearchLab.MemoryAndLocality",
+    "family": "MemoryAndLocality",
+    "hypothesis": "Global existence bitplane shared across all query answer representations.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in memory locality tests."
+  },
+  {
+    "id": "ADAPT-WTCC-001",
+    "legacyId": "ADAPT-01",
+    "name": "ADAPT01_WorkloadTelemetryCostModel",
+    "namespace": "NeuroCache.ResearchLab.AdaptiveSelection",
+    "family": "AdaptiveSelection",
+    "hypothesis": "Cost model scoring representations by (Bytes * W1 + Latency * W2 + WriteCost * W3).",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in adaptive selection tests."
+  },
+  {
+    "id": "ADAPT-ACRP-002",
+    "legacyId": "ADAPT-02",
+    "name": "ADAPT02_AdmissionControlledPromotion",
+    "namespace": "NeuroCache.ResearchLab.AdaptiveSelection",
+    "family": "AdaptiveSelection",
+    "hypothesis": "TinyLFU admission filter preventing cold scan pollution in hot answer caches.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in adaptive selection tests."
+  },
+  {
+    "id": "ADAPT-DWSV-003",
+    "legacyId": "ADAPT-03",
+    "name": "ADAPT03_DualWriteShadowValidationSwitcher",
+    "namespace": "NeuroCache.ResearchLab.AdaptiveSelection",
+    "family": "AdaptiveSelection",
+    "hypothesis": "Dual-writes mutations to two candidate stores and switches primary based on live telemetry.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in adaptive selection tests."
+  },
+  {
+    "id": "ADAPT-PORTFOLIO-004",
+    "legacyId": "ADAPT-04",
+    "name": "ADAPT04_PortfolioRouter",
+    "namespace": "NeuroCache.ResearchLab.AdaptiveSelection",
+    "family": "AdaptiveSelection",
+    "hypothesis": "Multi-engine router dispatching point queries, scans, and batch requests.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in adaptive selection tests."
+  },
+  {
+    "id": "ADAPT-HYSTERESIS-005",
+    "legacyId": "ADAPT-05",
+    "name": "ADAPT05_HysteresisConversionBudget",
+    "namespace": "NeuroCache.ResearchLab.AdaptiveSelection",
+    "family": "AdaptiveSelection",
+    "hypothesis": "Hysteresis threshold preventing rapid thrashing between representation types.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in adaptive selection tests."
+  },
+  {
+    "id": "ALT-ELIASFANO-001",
+    "legacyId": "ALT-01",
+    "name": "ALT01_EliasFanoEncoder",
+    "namespace": "NeuroCache.ResearchLab.AlternativeEncodings",
+    "family": "AlternativeEncodings",
+    "hypothesis": "Quasi-succinct Elias-Fano encoding for monotone sequences of true answer IDs.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in alternative encodings tests."
+  },
+  {
+    "id": "ALT-ZHEGALKIN-003",
+    "legacyId": "ALT-03",
+    "name": "ALT03_ZhegalkinPolynomialAlgebra",
+    "namespace": "NeuroCache.ResearchLab.AlternativeEncodings",
+    "family": "AlternativeEncodings",
+    "hypothesis": "Algebraic normal form over GF(2) XOR/AND operations evaluating predicates.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in alternative encodings tests."
+  },
+  {
+    "id": "ALT-TEMPLATES-004",
+    "legacyId": "ALT-04",
+    "name": "ALT04_SharedAnswerTemplatesWithExceptions",
+    "namespace": "NeuroCache.ResearchLab.AlternativeEncodings",
+    "family": "AlternativeEncodings",
+    "hypothesis": "Predefined template library with sparse exception offsets.",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in alternative encodings tests."
+  },
+  {
+    "id": "ALT-FACTS-005",
+    "legacyId": "ALT-05",
+    "name": "ALT05_ExactSufficientFactColumns",
+    "namespace": "NeuroCache.ResearchLab.AlternativeEncodings",
+    "family": "AlternativeEncodings",
+    "hypothesis": "Stores only the minimal sufficient columns (balance interval + active flag).",
+    "status": "CORRECTNESS_PASSED_NOT_BENCHMARKED",
+    "statusReason": "Correctness verified in alternative encodings tests."
+  },
+  {
+    "id": "SCHEMA-ONLINE-REPARTITION-001",
+    "legacyId": "TRACK-1",
+    "name": "SchemaOnlineRepartitionRunner",
+    "namespace": "NeuroCache.ResearchLab.AdvancedResearch",
+    "family": "DynamicSchema",
+    "hypothesis": "Enables online registration of 9th and 10th query predicates with background generation rebuilding and atomic pointer swapping without stalling reads.",
+    "status": "BUILT_NOT_TESTED",
+    "statusReason": "Assigned for implementation in Phase 2 Track 1."
+  },
+  {
+    "id": "SIMD-BITSLICE-001",
+    "legacyId": "TRACK-2",
+    "name": "SimdBitSlicedThresholdRunner",
+    "namespace": "NeuroCache.ResearchLab.AdvancedResearch",
+    "family": "SimdAcceleration",
+    "hypothesis": "Accelerates bulk threshold scans using AVX2 SIMD direct integer scans and bit-sliced arithmetic, with safe fallback where AVX-512 is unsupported.",
+    "status": "BUILT_NOT_TESTED",
+    "statusReason": "Assigned for implementation in Phase 2 Track 2."
+  },
+  {
+    "id": "SCALE-500M-001",
+    "legacyId": "TRACK-3",
+    "name": "Scale500MRunner",
+    "namespace": "NeuroCache.ResearchLab.AdvancedResearch",
+    "family": "ScaleEnvelope",
+    "hypothesis": "Evaluates physical memory footprint, working set, and throughput scaling from 50M to 500M records (250 MB raw payload, 269.5 MB static).",
+    "status": "BUILT_NOT_TESTED",
+    "statusReason": "Assigned for implementation in Phase 2 Track 3."
+  },
+  {
+    "id": "REPL-CDC-001",
+    "legacyId": "TRACK-4",
+    "name": "DistributedCdcReplicationRunner",
+    "namespace": "NeuroCache.ResearchLab.AdvancedResearch",
+    "family": "DistributedReplication",
+    "hypothesis": "Enables horizontal read scaling across multiple replicas via outbox event replay while maintaining local seqlock publication consistency.",
+    "status": "BUILT_NOT_TESTED",
+    "statusReason": "Assigned for implementation in Phase 2 Track 4."
+  }
+]

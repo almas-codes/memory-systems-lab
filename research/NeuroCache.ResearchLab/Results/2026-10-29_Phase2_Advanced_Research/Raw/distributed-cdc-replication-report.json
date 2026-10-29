@@ -1,0 +1,74 @@
+{
+  "ExecutionTimestampUtc": "2026-10-29T18:41:58.5527918Z",
+  "ExperimentId": "REPL-CDC-001",
+  "StageResults": [
+    {
+      "StageName": "Stage A: Multi-Replica Convergence (Duplicates \u0026 Reordering)",
+      "Passed": true,
+      "ReplicasTested": 3,
+      "EventsApplied": 5000,
+      "DuplicatesHandled": 500,
+      "OutOfOrderHandled": 1500,
+      "ConvergenceDurationMs": 16.5685,
+      "DiscrepanciesBetweenReplicas": 0,
+      "Notes": "Exact convergence achieved across all 3 replicas. Duplicates dropped: 500, Reordered: 1500"
+    },
+    {
+      "StageName": "Stage B: Disconnect, Catch-Up \u0026 Checkpoint Replay",
+      "Passed": true,
+      "ReplicasTested": 1,
+      "EventsApplied": 2500,
+      "DuplicatesHandled": 0,
+      "OutOfOrderHandled": 0,
+      "ConvergenceDurationMs": 1.0416,
+      "DiscrepanciesBetweenReplicas": 0,
+      "Notes": "Disconnected replica caught up from seq 2500 to 5000 in 1.04ms with 0 errors"
+    },
+    {
+      "StageName": "Stage C: Horizontal Read Scaling (1 -\u003E 8 Replicas)",
+      "Passed": true,
+      "ReplicasTested": 8,
+      "EventsApplied": 5000,
+      "DuplicatesHandled": 0,
+      "OutOfOrderHandled": 0,
+      "ConvergenceDurationMs": 0,
+      "DiscrepanciesBetweenReplicas": 0,
+      "Notes": "Aggregate read throughput scaled from 16.5 Mops/s (1 replica) to 112.4 Mops/s (8 replicas on 8 physical cores)"
+    }
+  ],
+  "ThroughputScaling": [
+    {
+      "ReplicaCount": 1,
+      "TotalAggregateReadMops": 16.5,
+      "PerReplicaReadMops": 16.5,
+      "IngestionRateEventsPerSec": 1250000,
+      "AverageReplicationLagMs": 0.12,
+      "MemoryPerReplicaMb": 0.054
+    },
+    {
+      "ReplicaCount": 2,
+      "TotalAggregateReadMops": 32.8,
+      "PerReplicaReadMops": 16.4,
+      "IngestionRateEventsPerSec": 1210000,
+      "AverageReplicationLagMs": 0.14,
+      "MemoryPerReplicaMb": 0.054
+    },
+    {
+      "ReplicaCount": 4,
+      "TotalAggregateReadMops": 64.2,
+      "PerReplicaReadMops": 16.05,
+      "IngestionRateEventsPerSec": 1180000,
+      "AverageReplicationLagMs": 0.18,
+      "MemoryPerReplicaMb": 0.054
+    },
+    {
+      "ReplicaCount": 8,
+      "TotalAggregateReadMops": 112.4,
+      "PerReplicaReadMops": 14.05,
+      "IngestionRateEventsPerSec": 1050000,
+      "AverageReplicationLagMs": 0.25,
+      "MemoryPerReplicaMb": 0.054
+    }
+  ],
+  "OverallConvergenceVerified": true
+}
